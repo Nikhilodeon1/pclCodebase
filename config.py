@@ -31,7 +31,7 @@ D_MODEL = 64 if TEST_MODE else 256
 N_HEADS = 4 if TEST_MODE else 8
 N_LAYERS = 2 if TEST_MODE else 6
 FFN_DIM = D_MODEL * 2
-N_VARS = 9
+// placeholder
 DROPOUT = 0.1
 
 # ── Training ─────────────────────────────────────────────────────────────────

@@ -888,23 +888,37 @@ def ablation_lambda_sweep(train_loader, val_loader, ood_loaders):
     logging.info("ABLATION: Lambda Sensitivity Sweep")
     logging.info("=" * 60)
 
-    eval_name = list(ood_loaders.keys())[0] if ood_loaders else None
-    eval_loader = ood_loaders[eval_name] if eval_name else val_loader
-    eval_label = eval_name or "Val"
+    # CORRECTNESS FIX: model selection MUST use the Site-A held-out VALIDATION
+    # split, never an OOD site. The previous version selected on ood_loaders[0]
+    # (Site B) — that is test-peeking and invalidates any "best λ" claim. We now
+    # evaluate every λ on val (the selection metric) AND on all OOD sites (for
+    # honest reporting), pick λ* = argmax VAL, and report whatever OOD it gives.
+    # λ=0.0 is included as the ERM reference so the comparison is apples-to-apples.
+    lam_values = [0.0] + list(LAMBDA_VALUES)
 
     results = {}
-    for lam in LAMBDA_VALUES:
+    for lam in lam_values:
         logging.info(f"\n--- λ = {lam} ---")
         model, _, _ = train_model(
             f"lambda_{lam}", train_loader, val_loader,
-            use_pcl=True, lam=lam, seed_offset=0,
+            use_pcl=(lam > 0.0), lam=lam, seed_offset=0,
         )
-        r = evaluate_model(model, eval_loader, TASK, device=DEVICE,
-                          split_name=f"λ={lam} {eval_label}")
-        results[lam] = r.get("auroc")
+        val_r = evaluate_model(model, val_loader, TASK, device=DEVICE,
+                               split_name=f"λ={lam} Val(SELECT)")
+        ood_r = {name: evaluate_model(model, loader, TASK, device=DEVICE,
+                                      split_name=f"λ={lam} {name}")
+                 for name, loader in ood_loaders.items()}
+        results[lam] = {"val": _serialize_val(val_r.get("auroc")),
+                        "ood": {k: _serialize_val(v.get("auroc")) for k, v in ood_r.items()}}
 
-    _plot_lambda_sweep(results, eval_label)
-    ALL_RESULTS["ablation_lambda"] = {str(k): float(v) if v is not None else None for k, v in results.items()}
+    valid = {l: r for l, r in results.items() if r["val"] is not None}
+    if valid:
+        best_lam = max(valid, key=lambda l: valid[l]["val"])
+        logging.info(f"[λ-sweep] val-selected λ* = {best_lam} "
+                     f"(val AUROC {valid[best_lam]['val']:.4f}); OOD at λ*: "
+                     f"{valid[best_lam]['ood']}  [SELECTED ON VAL, NOT OOD]")
+        results["_val_selected_lambda"] = best_lam
+    ALL_RESULTS["ablation_lambda"] = {str(k): v for k, v in results.items()}
     return results
 
 
@@ -935,12 +949,9 @@ def ablation_constraint_subset(train_loader, val_loader, ood_loaders):
 
     from src.ablations import SubsetConstraintLoss
 
-    eval_name = list(ood_loaders.keys())[0] if ood_loaders else None
-    eval_loader = ood_loaders[eval_name] if eval_name else val_loader
-    eval_label = eval_name or "Val"
-
+    # Report val (interpretation metric) + all OOD (honest). Any "constraint X
+    # helps" claim must be read off VAL, not an OOD site (test-peeking).
     # Active constraints are MAP, HH, SpO2 (PP and SI excluded by default).
-    # Ablate each active constraint to measure its individual contribution.
     constraints_to_remove = [None, "MAP", "HH", "SpO2"]
     results = {}
 
@@ -953,12 +964,15 @@ def ablation_constraint_subset(train_loader, val_loader, ood_loaders):
             use_pcl=True, pcl_loss_fn=loss_fn,
             seed_offset=0,
         )
-        r = evaluate_model(model, eval_loader, TASK, device=DEVICE,
-                          split_name=f"{label} {eval_label}")
-        results[label] = r.get("auroc")
+        val_r = evaluate_model(model, val_loader, TASK, device=DEVICE,
+                               split_name=f"{label} Val")
+        ood_r = {name: evaluate_model(model, loader, TASK, device=DEVICE,
+                                      split_name=f"{label} {name}")
+                 for name, loader in ood_loaders.items()}
+        results[label] = {"val": _serialize_val(val_r.get("auroc")),
+                          "ood": {k: _serialize_val(v.get("auroc")) for k, v in ood_r.items()}}
 
-    _plot_constraint_subset(results, eval_label)
-    ALL_RESULTS["ablation_constraint_subset"] = {k: float(v) if v is not None else None for k, v in results.items()}
+    ALL_RESULTS["ablation_constraint_subset"] = results
     return results
 
 

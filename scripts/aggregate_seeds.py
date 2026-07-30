@@ -158,7 +158,9 @@ def aggregate(seed_results):
         acc = {}
         for res in seed_results:
             for k, v in res.get(abl, {}).items():
-                if v is not None:
+                # ablation_lambda now stores {lam: {val, ood}} + a _val_selected_lambda
+                # key; only aggregate plain scalar entries here.
+                if isinstance(v, (int, float)):
                     acc.setdefault(k, []).append(float(v))
         for k, vals in acc.items():
             mean, std, n = _mean_std(vals)
