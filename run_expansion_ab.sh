@@ -45,8 +45,16 @@ run_arm () {                # $1 = arm name, $2 = PCL_EXPANDED_VARS, $3 = cache 
     --out-dir agg_${ARM}
 }
 
-run_arm expanded 1 cache_v17_prod
-run_arm core     0 cache_v9_prod
+# Arm selection: `bash run_expansion_ab.sh expanded|core|both` (default: expanded).
+# The prior A1 3-seed run already provides core-arm (9-var) numbers under the same
+# SOFA labels, so re-running `core` is a reproducibility check, not a prerequisite.
+ARM_SEL=${1:-expanded}
+case "$ARM_SEL" in
+  expanded) run_arm expanded 1 cache_v17_prod ;;
+  core)     run_arm core     0 cache_v9_prod ;;
+  both)     run_arm expanded 1 cache_v17_prod; run_arm core 0 cache_v9_prod ;;
+  *) echo "usage: bash run_expansion_ab.sh [expanded|core|both]"; exit 1 ;;
+esac
 
 echo
 echo "==================== A/B COMPLETE ===================="
