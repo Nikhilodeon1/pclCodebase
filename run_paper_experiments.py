@@ -9,6 +9,10 @@ Usage:
 """
 import os
 import sys
+# Ensure the repo root is importable regardless of the current working directory
+# (fixes "ModuleNotFoundError: No module named 'src.data'" when launched from
+# elsewhere or when src/ lacks __init__.py files on a fresh checkout).
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import json
 import logging
 import copy
