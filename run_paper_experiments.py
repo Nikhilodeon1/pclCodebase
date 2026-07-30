@@ -562,7 +562,7 @@ def experiment_2_feature_engineering(ds, train_loader, val_loader, ood_loaders, 
 
     # ERM + Feature Engineering
     logging.info("\n--- ERM + Feature Engineering ---")
-    fe_erm = fresh_model(n_vars=12, seed=SEED + 10)
+    fe_erm = fresh_model(n_vars=N_VARS + 3, seed=SEED + 10)
     run_erm_pretraining(
         fe_erm, fe_train, fe_val,
         n_epochs=PRETRAIN_EPOCHS, device=DEVICE,
@@ -591,7 +591,7 @@ def experiment_2_feature_engineering(ds, train_loader, val_loader, ood_loaders, 
 
     # PCL + Feature Engineering
     logging.info("\n--- PCL + Feature Engineering ---")
-    fe_pcl = fresh_model(n_vars=12, seed=SEED + 12)
+    fe_pcl = fresh_model(n_vars=N_VARS + 3, seed=SEED + 12)
     pcl_loss = PhysiologicalConstraintLoss()
     run_pretraining(
         fe_pcl, pcl_loss, fe_train, fe_val,
@@ -1398,12 +1398,23 @@ def _generate_latex_tables():
                 line += f" {target}={_fmt(auroc)}"
             lines.append(line)
 
-    # Lambda sweep
+    # Lambda sweep. Entries are {"val":…, "ood":{site:…}} since selection moved
+    # to the Site-A val split; "_val_selected_lambda" holds the chosen λ*.
     lam = ALL_RESULTS.get("ablation_lambda", {})
     if lam:
-        lines.append("\n--- Table 6: Lambda Sensitivity ---")
-        for l_val, auroc in lam.items():
-            lines.append(f"  λ={l_val}: {_fmt(auroc)}")
+        lines.append("\n--- Table 6: Lambda Sensitivity (selected on VAL) ---")
+        best = lam.get("_val_selected_lambda")
+        for l_val, entry in lam.items():
+            if l_val == "_val_selected_lambda":
+                continue
+            if isinstance(entry, dict):
+                ood = "  ".join(f"{k}={_fmt(v)}" for k, v in (entry.get("ood") or {}).items())
+                star = "  <-- val-selected" if str(best) == str(l_val) else ""
+                lines.append(f"  λ={l_val}: val={_fmt(entry.get('val'))}  {ood}{star}")
+            else:
+                lines.append(f"  λ={l_val}: {_fmt(entry)}")
+        if best is not None:
+            lines.append(f"  val-selected λ* = {best}")
 
     # Violation audit
     audit = ALL_RESULTS.get("experiment_0_violation_audit", {})

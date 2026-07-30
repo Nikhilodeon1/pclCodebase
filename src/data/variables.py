@@ -80,9 +80,12 @@ MIMIC_ITEM_IDS = {
 }
 if USE_EXPANDED:
     MIMIC_ITEM_IDS.update({
-        # chartevents. Temp: 223762 is Celsius ONLY — 223761 (Fahrenheit) is
-        # excluded on purpose; mixing units would corrupt the channel.
-        "Temp": [223762],
+        # chartevents. MIMIC charts temperature mostly in FAHRENHEIT (223761,
+        # ~90% of rows) with a Celsius minority (223762). Both are included and
+        # 223761 is CONVERTED to Celsius via MIMIC_UNIT_CONVERT below — dropping
+        # it would leave Temp ~6% observed in MIMIC vs ~82% in PhysioNet, a
+        # train/test availability gap that damages zero-shot transfer.
+        "Temp": [223762, 223761],
         "Resp": [220210, 224690],
         # labevents (serum chemistry / heme)
         "WBC":        [51301],
@@ -97,6 +100,10 @@ if USE_EXPANDED:
 # reads the two tables separately).
 MIMIC_EXPANDED_CHART = ["Temp", "Resp"]
 MIMIC_EXPANDED_LAB = ["WBC", "Lactate", "BUN", "Creatinine", "Potassium", "Glucose"]
+
+# Per-itemid unit harmonization applied BEFORE plausibility clipping.
+# 223761 = "Temperature Fahrenheit" -> Celsius.
+MIMIC_UNIT_CONVERT = {223761: lambda v: (v - 32.0) * 5.0 / 9.0}
 
 EICU_VITAL_MAPPING = {
     "HR": "heartrate",

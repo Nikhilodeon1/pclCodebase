@@ -149,7 +149,7 @@ def run_erm_pretraining(
 def add_engineered_features(dataset):
     """
     Adds computed MAP, PP, and SI as explicit extra input columns to each sample.
-    Modifies dataset in-place. n_vars goes from 9 → 12.
+    Modifies dataset in-place. n_vars goes from V → V+3.
 
     This is the FE baseline — gives the model the physics as features.
     The FE Demolition Ablation will show PCL >> FE on OOD.
@@ -203,7 +203,7 @@ def add_engineered_features(dataset):
         n_added += 1
 
     logging.info(f"Feature engineering applied to {n_added} stays")
-    logging.info(f"New x shape: {dataset.samples[0]['x'].shape}  (was (48, 9), now (48, 12))")
+    logging.info(f"New x shape: {dataset.samples[0]['x'].shape} (3 engineered cols appended)")
     logging.info(f"Added columns: MAP_computed (idx 9), PP_computed (idx 10), SI_computed (idx 11)")
     return dataset
 

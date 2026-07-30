@@ -116,6 +116,53 @@ def _read_labs_chunked(path, stay_ids):
     return pd.concat(parts, ignore_index=True)
 
 
+def _read_nursecharting_chunked(path, stay_ids):
+    """Supplementary vitals from nurseCharting.
+
+    eICU's vitalPeriodic carries temperature for only ~6% of hours, while
+    nurseCharting holds the bulk of it (and already provides a clean
+    'Temperature (C)' column, so no unit conversion is needed). Without this the
+    Temp channel would be ~82% observed at the PhysioNet training site but ~6% at
+    eICU — an availability gap that damages zero-shot transfer.
+    """
+    try:
+        resolved = _resolve_path(path)
+    except FileNotFoundError:
+        logging.warning("eICU nurseCharting not found — Temp will stay sparse")
+        return pd.DataFrame(columns=["patientunitstayid", "hour", "var", "valuenum"])
+
+    wanted = {"temperature (c)": "Temp", "respiratory rate": "Resp"}
+    usecols = ["patientunitstayid", "nursingchartoffset",
+               "nursingchartcelltypevalname", "nursingchartvalue"]
+    parts = []
+    scanned = n_chunks = 0
+    beat = make_heartbeat(f"read {os.path.basename(path)}")
+    for chunk in pd.read_csv(resolved, usecols=usecols, chunksize=_EICU_CHUNK,
+                             encoding_errors="replace", low_memory=False):
+        n_chunks += 1
+        scanned += len(chunk)
+        beat(n_chunks, extra=f"{scanned:,} rows scanned")
+        chunk = chunk[chunk["patientunitstayid"].isin(stay_ids)]
+        chunk = chunk[(chunk["nursingchartoffset"] > _MIN_OFFSET)
+                      & (chunk["nursingchartoffset"] < _MAX_MIN)]
+        if chunk.empty:
+            continue
+        chunk = chunk.copy()
+        chunk["var"] = (chunk["nursingchartcelltypevalname"].astype(str)
+                        .str.strip().str.lower().map(wanted))
+        chunk = chunk[chunk["var"].notna()]
+        if chunk.empty:
+            continue
+        chunk["valuenum"] = pd.to_numeric(chunk["nursingchartvalue"], errors="coerce")
+        chunk = chunk[chunk["valuenum"].notna()]
+        chunk["hour"] = (chunk["nursingchartoffset"] / 60).astype(int)
+        parts.append(chunk[["patientunitstayid", "hour", "var", "valuenum"]])
+
+    if not parts:
+        return pd.DataFrame(columns=["patientunitstayid", "hour", "var", "valuenum"])
+    return pd.concat(parts, ignore_index=True)
+
+
 def _build_all_timeseries(long_df, stay_ids, pid_to_idx):
     """
     Build (n_stays, HOURS, N_VARS) array from long-format event table.
@@ -196,15 +243,20 @@ def load_eicu(data_path, fraction=1.0, seed=42, keep_raw=False):
     # Aperiodic BP only fills cells the invasive line left empty; labs occupy
     # disjoint (ABG) columns. Values within each source are median-binned per
     # (patient, hour, var), per the CLAUDE.md standardization spec.
+    logging.info("eICU: reading nurseCharting (chunked)...")
+    long_nc = _read_nursecharting_chunked(
+        os.path.join(data_path, "nurseCharting.csv.gz"), stay_ids)
+
     ts_p = _build_all_timeseries(long_p,    stay_ids, pid_to_idx)  # HR/SBP/DBP/MAP/SpO2
     ts_a = _build_all_timeseries(long_a,    stay_ids, pid_to_idx)  # SBP/DBP/MAP (cuff)
-    ts_l = _build_all_timeseries(long_labs, stay_ids, pid_to_idx)  # ABG labs
+    ts_l = _build_all_timeseries(long_labs, stay_ids, pid_to_idx)  # ABG + chem labs
+    ts_n = _build_all_timeseries(long_nc,   stay_ids, pid_to_idx)  # Temp/Resp (nurse)
 
     all_ts = ts_p
-    for src in (ts_a, ts_l):
+    for src in (ts_a, ts_l, ts_n):
         fill = np.isnan(all_ts) & ~np.isnan(src)
         all_ts[fill] = src[fill]
-    del long_p, long_a, long_labs, ts_a, ts_l
+    del long_p, long_a, long_labs, long_nc, ts_a, ts_l, ts_n
 
     # ── Filter and assemble samples ──────────────────────────────────────────
     all_raw_ts  = []

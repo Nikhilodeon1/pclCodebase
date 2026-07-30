@@ -2,7 +2,10 @@ import os
 import logging
 import numpy as np
 import pandas as pd
-from .variables import CANONICAL_VARIABLES, MIMIC_ITEM_IDS, VAR_TO_IDX, PLAUS
+from .variables import (
+    CANONICAL_VARIABLES, MIMIC_ITEM_IDS, VAR_TO_IDX, PLAUS,
+    MIMIC_EXPANDED_CHART, MIMIC_EXPANDED_LAB, MIMIC_UNIT_CONVERT,
+)
 from .preprocessing import (
     HOURS, MIN_LOS_H, preprocess_timeseries, has_hemodynamic_window,
     MinMaxNormalizer, make_heartbeat,
@@ -17,10 +20,12 @@ _LAB_CHUNK   = 500_000
 
 # Flat itemid → (canonical_var, col_idx) lookups built once at import time
 _ITEMID_TO_VAR = {iid: var for var, iids in MIMIC_ITEM_IDS.items() for iid in iids}
-_ALL_CHART_IDS = set(iid for var in ["SBP", "DBP", "MAP", "HR", "SpO2"]
-                     for iid in MIMIC_ITEM_IDS[var])
-_ALL_LAB_IDS   = set(iid for var in ["pH", "HCO3", "pCO2", "PaO2"]
-                     for iid in MIMIC_ITEM_IDS[var])
+_CHART_VARS = ["SBP", "DBP", "MAP", "HR", "SpO2"] + [
+    v for v in MIMIC_EXPANDED_CHART if v in MIMIC_ITEM_IDS]
+_LAB_VARS = ["pH", "HCO3", "pCO2", "PaO2"] + [
+    v for v in MIMIC_EXPANDED_LAB if v in MIMIC_ITEM_IDS]
+_ALL_CHART_IDS = set(iid for var in _CHART_VARS for iid in MIMIC_ITEM_IDS[var])
+_ALL_LAB_IDS   = set(iid for var in _LAB_VARS   for iid in MIMIC_ITEM_IDS[var])
 
 
 def load_stays(data_path):
@@ -85,6 +90,13 @@ def _build_all_timeseries(events_df, stays_df, id_col, n_stays):
     ev["var"] = ev["itemid"].map(_ITEMID_TO_VAR)
     ev = ev[ev["var"].notna()]
     ev["col_idx"] = ev["var"].map(VAR_TO_IDX)
+
+    # Unit harmonization BEFORE clipping (e.g. Fahrenheit temps -> Celsius).
+    # Without this, F values would be clipped away by the Celsius bounds.
+    for iid, fn in MIMIC_UNIT_CONVERT.items():
+        m = ev["itemid"] == iid
+        if m.any():
+            ev.loc[m, "valuenum"] = fn(ev.loc[m, "valuenum"])
 
     # Clip to plausible range per variable
     for var, (lo, hi) in PLAUS.items():

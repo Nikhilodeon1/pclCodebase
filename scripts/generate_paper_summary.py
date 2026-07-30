@@ -148,19 +148,45 @@ def main():
 
     # ── Ablation: Lambda Sensitivity ─────────────────────────────────────────
     if ablation_lam:
-        md += "\n### Ablation: Lambda Sensitivity\n\n"
-        md += "| λ | OOD AUROC |\n"
-        md += "|---|----------|\n"
-        for lam_val in sorted(ablation_lam.keys(), key=lambda x: float(x)):
-            md += f"| {lam_val} | {_fmt(ablation_lam[lam_val])} |\n"
+        # Entries are {"val":…, "ood":{site:…}}; λ* is chosen on VAL (never OOD).
+        best = ablation_lam.get("_val_selected_lambda")
+        keys = [k for k in ablation_lam if k != "_val_selected_lambda"]
+        sites = []
+        for k in keys:
+            e = ablation_lam[k]
+            if isinstance(e, dict):
+                sites = list((e.get("ood") or {}).keys())
+                break
+        md += "\n### Ablation: Lambda Sensitivity (selected on validation)\n\n"
+        md += "| λ | Val AUROC | " + " | ".join(sites) + " |\n"
+        md += "|---|---|" + "---|" * len(sites) + "\n"
+        for lam_val in sorted(keys, key=lambda x: float(x)):
+            e = ablation_lam[lam_val]
+            star = " **(λ\\*)**" if str(best) == str(lam_val) else ""
+            if isinstance(e, dict):
+                cells = " | ".join(_fmt((e.get("ood") or {}).get(s)) for s in sites)
+                md += f"| {lam_val}{star} | {_fmt(e.get('val'))} | {cells} |\n"
+            else:
+                md += f"| {lam_val}{star} | {_fmt(e)} | " + " | ".join("—" for _ in sites) + " |\n"
 
     # ── Ablation: Constraint Subset ──────────────────────────────────────────
     if ablation_sub:
+        # Entries are {"val":…, "ood":{site:…}}; read any "constraint helps"
+        # conclusion off VAL, not an OOD site.
+        sites = []
+        for e in ablation_sub.values():
+            if isinstance(e, dict):
+                sites = list((e.get("ood") or {}).keys())
+                break
         md += "\n### Ablation: Constraint Subset\n\n"
-        md += "| Condition | OOD AUROC |\n"
-        md += "|-----------|----------|\n"
-        for cond, auroc in ablation_sub.items():
-            md += f"| {cond} | {_fmt(auroc)} |\n"
+        md += "| Condition | Val AUROC | " + " | ".join(sites) + " |\n"
+        md += "|---|---|" + "---|" * len(sites) + "\n"
+        for cond, e in ablation_sub.items():
+            if isinstance(e, dict):
+                cells = " | ".join(_fmt((e.get("ood") or {}).get(s)) for s in sites)
+                md += f"| {cond} | {_fmt(e.get('val'))} | {cells} |\n"
+            else:
+                md += f"| {cond} | {_fmt(e)} | " + " | ".join("—" for _ in sites) + " |\n"
 
     # ── Classical Baselines ──────────────────────────────────────────────────
     if classical:
