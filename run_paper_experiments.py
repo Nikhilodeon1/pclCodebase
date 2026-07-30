@@ -1701,8 +1701,12 @@ def main(z, a, b, c, d, zxcxz, f, g, h):
 
 if __name__ == "__main__":
     if SEED_STUDY:
-        # Seed study: EXP1 (main OOD) + EXP3 (randomization) only. Args:
+        # Seed study: EXP1 (main OOD) [+ EXP3 randomization]. Args:
         # z=EXP1, a=EXP2, b=EXP3, c=EXP4, d=EXP5, zxcxz=EXP6, f=EXP7, g=lambda, h=subset
-        main(0, 1, 0, 1, 1, 1, 1, 1, 1)
+        # EXP0 audit (+A2 computability) always runs inside main() regardless.
+        # PCL_SKIP_EXP3=1 => EXP1 only (Phase 1 gate: inspect PCL vs ERM before
+        # spending on EXP3/A3).
+        b = 1 if os.environ.get("PCL_SKIP_EXP3", "0") == "1" else 0
+        main(0, 1, b, 1, 1, 1, 1, 1, 1)
     else:
         main(0, 0, 0, 0, 0, 0, 0, 0, 0)

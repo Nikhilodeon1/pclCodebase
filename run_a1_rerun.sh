@@ -1,12 +1,27 @@
 #!/usr/bin/env bash
-# A1 rerun: 3-seed main OOD (EXP1) + randomization (EXP3) with the new SOFA
-# Sepsis-3 labels, then aggregate into camera-ready tables. Gated on EXP1 per
-# plan — inspect PCL vs ERM before spending compute on A3.
+# A1 Phase 1: re-preprocess + EXP0 audit (incl. A2 computability) + EXP1 3-seed
+# main-OOD, with the new SOFA Sepsis-3 labels. EXP3 and A3 are intentionally
+# SKIPPED — gate on EXP1 (inspect PCL vs ERM) before spending on them.
 set -e
-[ -f runpod_env.sh ] && source runpod_env.sh   # sets prod mode + data paths
+[ -f runpod_env.sh ] && source runpod_env.sh   # prod mode + data paths
 
-export PCL_SEED_STUDY=1        # EXP1 + EXP3 only (skips heavy EXP2/4-7, classical, high-k IRM)
-CACHE=cache_a1_shared          # fresh cache dir => SOFA labels (not stale ICD cache)
+# ── Preflight: fail fast if not prod/CUDA (silent CPU on full data = brutal) ──
+python - <<'PY'
+import os, sys, torch
+test = os.environ.get("PCL_TEST_MODE", "1") == "1"
+if test:
+    sys.exit("ABORT: PCL_TEST_MODE!=0 — runpod_env.sh not sourced? Prod mode required.")
+if not torch.cuda.is_available():
+    sys.exit("ABORT: CUDA not available — would fall back to CPU on full data.")
+print(f"Preflight OK: prod mode, device=cuda ({torch.cuda.get_device_name(0)})")
+PY
+
+export PCL_SEED_STUDY=1     # gates off EXP2/4-7, high-k IRM, classical baselines
+export PCL_SKIP_EXP3=1      # EXP1 only for Phase 1
+CACHE=cache_a1_shared       # fresh shared cache => new SOFA labels, not stale ICD
+
+# Clean slate so resume logic can't skip an experiment / reuse old-label cache.
+rm -rf "$CACHE" results_a1_s42 results_a1_s43 results_a1_s44
 
 for S in 42 43 44; do
   echo "=== SEED $S ==="
@@ -18,4 +33,4 @@ python scripts/aggregate_seeds.py \
   results_a1_s42/paper_results.json \
   results_a1_s43/paper_results.json \
   results_a1_s44/paper_results.json
-echo "Done. Tables: results_a1_s44/aggregated_tables.tex"
+echo "DONE. EXP1 tables: results_a1_s44/aggregated_tables.tex ; audit+A2 in each paper_results.json"
