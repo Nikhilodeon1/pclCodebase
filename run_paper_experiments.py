@@ -249,9 +249,32 @@ def load_all_data():
         except Exception as e:
             logging.warning(f"[CACHE] Failed to load cache ({e}); re-reading from CSV")
 
-    pn_samples, _    = load_physionet2019(PHYSIONET_DIR, fraction=DATA_FRACTION)
-    mimic_samples, _ = load_mimic4(MIMIC_DIR, fraction=DATA_FRACTION)
-    eicu_samples, _  = load_eicu(EICU_DIR,  fraction=DATA_FRACTION)
+    # Per-dataset incremental cache. The full-scale eICU read is the memory- and
+    # time-hungry step; caching each dataset the moment it is built means a
+    # failure there never forces PhysioNet/MIMIC to be rebuilt on the retry.
+    def _stage(name, fn, *args, **kw):
+        part = os.path.join(CACHE_DIR, f"samples_{name}_{tag}.pkl")
+        if os.path.exists(part):
+            try:
+                with open(part, "rb") as fp:
+                    s = pickle.load(fp)
+                logging.info(f"[CACHE] {name}: loaded {len(s)} samples from {part}")
+                return s
+            except Exception as e:
+                logging.warning(f"[CACHE] {name}: part cache unreadable ({e}); rebuilding")
+        s, _ = fn(*args, **kw)
+        try:
+            with open(part, "wb") as fp:
+                pickle.dump(s, fp, protocol=pickle.HIGHEST_PROTOCOL)
+            logging.info(f"[CACHE] {name}: saved {len(s)} samples → {part}")
+        except Exception as e:
+            logging.warning(f"[CACHE] {name}: could not write part cache: {e}")
+        import gc; gc.collect()
+        return s
+
+    pn_samples    = _stage("physionet", load_physionet2019, PHYSIONET_DIR, fraction=DATA_FRACTION)
+    mimic_samples = _stage("mimic",     load_mimic4,        MIMIC_DIR,     fraction=DATA_FRACTION)
+    eicu_samples  = _stage("eicu",      load_eicu,          EICU_DIR,      fraction=DATA_FRACTION)
 
     logging.info(f"PhysioNet: {len(pn_samples)}")
     logging.info(f"MIMIC-IV:  {len(mimic_samples)}")

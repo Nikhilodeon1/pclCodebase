@@ -31,6 +31,24 @@ _MAX_MIN    = HOURS * 60  # keep only readings in the first 48h
 _MIN_OFFSET = -60
 
 
+def _compact(df):
+    """Median-collapse a long-format chunk to (stay, hour, var) and downcast.
+
+    Values are hourly median-binned downstream anyway, so pre-aggregating here is
+    equivalent up to median-of-medians across chunk boundaries (a stay-hour rarely
+    straddles two chunks). Downcasting + categorical 'var' cuts per-row memory
+    several-fold versus int64/float64/object.
+    """
+    if df.empty:
+        return df
+    out = df.groupby(["patientunitstayid", "hour", "var"], as_index=False)["valuenum"].median()
+    out["patientunitstayid"] = out["patientunitstayid"].astype("int32")
+    out["hour"] = out["hour"].astype("int16")
+    out["valuenum"] = out["valuenum"].astype("float32")
+    out["var"] = out["var"].astype("category")
+    return out
+
+
 def _resolve_path(path):
     """Return path if it exists, else the .csv fallback, else raise."""
     if os.path.exists(path):
@@ -79,7 +97,11 @@ def _read_vitals_chunked(path, col_map, stay_ids, offset_col="observationoffset"
         )
         melted = melted[melted["valuenum"].notna()]
         melted["var"] = melted["eicu_col"].map(col_map)
-        parts.append(melted[["patientunitstayid", "hour", "var", "valuenum"]])
+        # Collapse to one row per (stay, hour, var) inside the chunk and downcast
+        # dtypes. vitalPeriodic is ~146M rows; keeping raw matches (with an object
+        # 'var' column) is the single biggest memory consumer in the pipeline and
+        # overruns the 32GB container limit at 17 variables.
+        parts.append(_compact(melted[["patientunitstayid", "hour", "var", "valuenum"]]))
 
     if not parts:
         return pd.DataFrame(columns=["patientunitstayid", "hour", "var", "valuenum"])
@@ -107,10 +129,10 @@ def _read_labs_chunked(path, stay_ids):
         chunk["hour"] = (chunk["labresultoffset"] / 60).astype(int)
         chunk["var"] = chunk["labname"].str.strip().str.lower().map(_LAB_NAME_MAP)
         chunk = chunk[chunk["var"].notna()]
-        parts.append(
+        parts.append(_compact(
             chunk[["patientunitstayid", "hour", "var", "labresult"]]
             .rename(columns={"labresult": "valuenum"})
-        )
+        ))
     if not parts:
         return pd.DataFrame(columns=["patientunitstayid", "hour", "var", "valuenum"])
     return pd.concat(parts, ignore_index=True)
@@ -156,7 +178,12 @@ def _read_nursecharting_chunked(path, stay_ids):
         chunk["valuenum"] = pd.to_numeric(chunk["nursingchartvalue"], errors="coerce")
         chunk = chunk[chunk["valuenum"].notna()]
         chunk["hour"] = (chunk["nursingchartoffset"] / 60).astype(int)
-        parts.append(chunk[["patientunitstayid", "hour", "var", "valuenum"]])
+        # Collapse to one row per (stay, hour, var) INSIDE the chunk before
+        # accumulating. nurseCharting is ~150M rows; retaining raw matches blew
+        # the container memory limit. Values are median-binned per hour anyway,
+        # so pre-aggregating here is equivalent up to median-of-medians across
+        # chunk boundaries (a stay-hour rarely straddles two chunks).
+        parts.append(_compact(chunk[["patientunitstayid", "hour", "var", "valuenum"]]))
 
     if not parts:
         return pd.DataFrame(columns=["patientunitstayid", "hour", "var", "valuenum"])
@@ -170,7 +197,9 @@ def _build_all_timeseries(long_df, stay_ids, pid_to_idx):
     """
     n_stays = len(stay_ids)
     n_vars  = len(CANONICAL_VARIABLES)
-    all_ts  = np.full((n_stays, HOURS, n_vars), np.nan)
+    # float32: at 130k eICU stays x 48h x 17 vars this halves each source array
+    # (~850MB -> ~425MB), which matters against the 32GB container limit.
+    all_ts  = np.full((n_stays, HOURS, n_vars), np.nan, dtype=np.float32)
 
     if long_df.empty:
         return all_ts
@@ -247,16 +276,19 @@ def load_eicu(data_path, fraction=1.0, seed=42, keep_raw=False):
     long_nc = _read_nursecharting_chunked(
         os.path.join(data_path, "nurseCharting.csv.gz"), stay_ids)
 
-    ts_p = _build_all_timeseries(long_p,    stay_ids, pid_to_idx)  # HR/SBP/DBP/MAP/SpO2
-    ts_a = _build_all_timeseries(long_a,    stay_ids, pid_to_idx)  # SBP/DBP/MAP (cuff)
-    ts_l = _build_all_timeseries(long_labs, stay_ids, pid_to_idx)  # ABG + chem labs
-    ts_n = _build_all_timeseries(long_nc,   stay_ids, pid_to_idx)  # Temp/Resp (nurse)
-
-    all_ts = ts_p
-    for src in (ts_a, ts_l, ts_n):
-        fill = np.isnan(all_ts) & ~np.isnan(src)
-        all_ts[fill] = src[fill]
-    del long_p, long_a, long_labs, long_nc, ts_a, ts_l, ts_n
+    # Build each source array and release its long-format frame immediately;
+    # holding all four frames plus their arrays at once is what pushes the
+    # container past its memory limit on full-scale eICU.
+    all_ts = _build_all_timeseries(long_p, stay_ids, pid_to_idx)  # HR/SBP/DBP/MAP/SpO2
+    del long_p
+    for _frame in ("long_a", "long_labs", "long_nc"):
+        _src_df = locals()[_frame]
+        _src = _build_all_timeseries(_src_df, stay_ids, pid_to_idx)
+        fill = np.isnan(all_ts) & ~np.isnan(_src)
+        all_ts[fill] = _src[fill]
+        del _src, _src_df
+    del long_a, long_labs, long_nc
+    import gc; gc.collect()
 
     # ── Filter and assemble samples ──────────────────────────────────────────
     all_raw_ts  = []
