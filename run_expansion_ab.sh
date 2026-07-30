@@ -31,8 +31,11 @@ run_arm () {                # $1 = arm name, $2 = PCL_EXPANDED_VARS, $3 = cache 
     echo "=== $ARM seed $S ==="
     local OUT=results_${ARM}_s$S
     rm -rf "$OUT"
-    # EXP0 audit is seed-independent: compute on the first seed only.
-    local SKIP=$([ "$S" = 42 ] && echo 0 || echo 1)
+    # EXP0 audit re-reads all raw CSVs (~1h) and is seed- AND expansion-
+    # independent: it measures MAP/HH/Severinghaus violations on the core
+    # variables only. The A1 run already produced it (results_a1_s42), so skip
+    # it here rather than burn GPU time re-deriving identical numbers.
+    local SKIP=1
     PCL_EXPANDED_VARS=$EXPANDED PCL_SEED=$S PCL_SKIP_AUDIT=$SKIP \
       RESULTS_DIR=$OUT CHECKPOINT_DIR=$OUT/ckpt CACHE_DIR=$CACHE \
       python run_paper_experiments.py
