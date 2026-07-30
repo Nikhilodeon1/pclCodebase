@@ -20,8 +20,10 @@ export PCL_SEED_STUDY=1     # gates off EXP2/4-7, high-k IRM, classical baseline
 export PCL_SKIP_EXP3=1      # EXP1 only for Phase 1
 CACHE=cache_a1_shared       # fresh shared cache => new SOFA labels, not stale ICD
 
-# Clean slate so resume logic can't skip an experiment / reuse old-label cache.
-rm -rf "$CACHE" results_a1_s42 results_a1_s43 results_a1_s44
+# Clean result dirs so resume logic can't skip an experiment. The cache dir
+# (cache_a1_shared) is a NEW name that only ever holds SOFA labels, so it is
+# NOT wiped — this lets a CPU-prebuilt cache (scripts/build_cache.py) be reused.
+rm -rf results_a1_s42 results_a1_s43 results_a1_s44
 
 for S in 42 43 44; do
   echo "=== SEED $S ==="
