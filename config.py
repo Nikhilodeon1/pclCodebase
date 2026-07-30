@@ -31,7 +31,10 @@ D_MODEL = 64 if TEST_MODE else 256
 N_HEADS = 4 if TEST_MODE else 8
 N_LAYERS = 2 if TEST_MODE else 6
 FFN_DIM = D_MODEL * 2
-// placeholder
+# Derived from the canonical variable list so the feature-expansion track
+# (PCL_EXPANDED_VARS) changes the model width automatically. 9 core + 8 expanded.
+from src.data.variables import CANONICAL_VARIABLES as _CANON
+N_VARS = len(_CANON)
 DROPOUT = 0.1
 
 # ── Training ─────────────────────────────────────────────────────────────────
