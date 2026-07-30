@@ -1504,8 +1504,12 @@ def main(z, a, b, c, d, zxcxz, f, g, h):
         logging.info(f"GPU: {torch.cuda.get_device_name(0)}")
     logging.info(f"{'#' * 60}\n")
 
-    # EXP 0: always re-run (fast, proves constraints aren't vacuous)
-    if not _done("experiment_0_violation_audit"):
+    # EXP 0 audit (+A2 computability). Seed-independent, so in a multi-seed sweep
+    # only the first seed needs it; PCL_SKIP_AUDIT=1 skips the (slow, raw-data)
+    # re-read on the other seeds while the GPU would otherwise idle.
+    if os.environ.get("PCL_SKIP_AUDIT") == "1":
+        logging.info("[SKIP] EXP 0 audit skipped (PCL_SKIP_AUDIT=1; done on base seed)")
+    elif not _done("experiment_0_violation_audit"):
         experiment_0_constraint_violation_audit()
         _save_results()
     else:

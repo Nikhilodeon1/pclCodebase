@@ -27,7 +27,10 @@ rm -rf results_a1_s42 results_a1_s43 results_a1_s44
 
 for S in 42 43 44; do
   echo "=== SEED $S ==="
-  PCL_SEED=$S RESULTS_DIR=results_a1_s$S CHECKPOINT_DIR=results_a1_s$S/ckpt CACHE_DIR=$CACHE \
+  # EXP0 audit is seed-independent: run it only on the first seed, skip on 43/44.
+  SKIP_AUDIT=$([ "$S" = 42 ] && echo 0 || echo 1)
+  PCL_SEED=$S PCL_SKIP_AUDIT=$SKIP_AUDIT \
+    RESULTS_DIR=results_a1_s$S CHECKPOINT_DIR=results_a1_s$S/ckpt CACHE_DIR=$CACHE \
     python run_paper_experiments.py
 done
 
