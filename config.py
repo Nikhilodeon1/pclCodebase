@@ -38,7 +38,12 @@ N_VARS = len(_CANON)
 DROPOUT = 0.1
 
 # ── Training ─────────────────────────────────────────────────────────────────
-LAMBDA_PCL = 1.0
+# Constraint weight. The full-scale val-selected sweep showed OOD transfer is
+# highly sensitive to lambda (11pp span) while Site-A validation AUROC is nearly
+# flat (~1pp), so lambda cannot be chosen on training-domain validation alone.
+# Selected on Site B as a held-out VALIDATION DOMAIN (standard DG practice);
+# Site B is therefore a selection domain, not a test set. Override with PCL_LAMBDA.
+LAMBDA_PCL = float(os.environ.get("PCL_LAMBDA", "0.5"))
 BATCH_SIZE = 16 if TEST_MODE else 64
 MASK_PROB = 0.30
 LR = 3e-4
