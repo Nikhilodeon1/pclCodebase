@@ -214,6 +214,26 @@ def add_engineered_features(dataset):
 # 3. IRM BASELINE
 # ════════════════════════════════════════════════════════════════════════════
 
+def _compute_pos_weight(loader, task_name, device, cap=100.0):
+    """pos_weight = #neg/#pos over the whole training split.
+
+    run_finetuning() applies this, but the IRM/DRO fine-tuners historically did
+    not — at ~7-15% sepsis prevalence that pushes them toward the all-negative
+    solution and produces near- or below-chance AUROC, making them look broken
+    rather than merely weaker. Computed over the full dataset (not per batch) so
+    shuffling/drop_last cannot make it non-deterministic.
+    """
+    ds = loader.dataset
+    if hasattr(ds, "indices"):
+        labels = [ds.dataset.samples[i][task_name].item() for i in ds.indices]
+    else:
+        labels = [s[task_name].item() for s in ds.samples]
+    num_pos = float(np.sum(labels))
+    num_neg = float(len(labels) - num_pos)
+    w = min(num_neg / (num_pos + 1e-6), cap)
+    return torch.tensor([w], device=device, dtype=torch.float32)
+
+
 def irm_penalty(logits, labels):
     """
     Computes the IRM penalty for one environment.
@@ -253,11 +273,15 @@ class IRMFinetuner:
             model.add_classification_head(task_name)
         self.model = self.model.to(device)
 
+        self.pos_weight = None  # set on first train_epoch (needs the loader)
         self.optimizer = torch.optim.AdamW(
             model.parameters(), lr=lr, weight_decay=1e-4
         )
 
     def train_epoch(self, loader):
+        if self.pos_weight is None:
+            self.pos_weight = _compute_pos_weight(loader, self.task_name, self.device)
+            logging.info(f" [IRM] pos_weight = {self.pos_weight.item():.2f}")
         self.model.train()
         epoch_losses = []
 
@@ -274,7 +298,8 @@ class IRMFinetuner:
                 reps, self.task_name, obs_mask=mask
             ).squeeze(-1)
 
-            erm_loss = F.binary_cross_entropy_with_logits(logits, labels)
+            erm_loss = F.binary_cross_entropy_with_logits(
+                logits, labels, pos_weight=self.pos_weight)
 
             penalty = torch.tensor(0.0, device=self.device)
             unique_envs = envs.unique()
@@ -305,6 +330,7 @@ class IRMFinetuner:
     def run(self, train_loader, val_loader, n_epochs=20, save_path=None):
         history = {"train_loss": [], "val_auroc": []}
         best_auroc = 0.0
+        best_state = None
 
         logging.info(f"\nIRM Fine-tuning: {self.task_name} | λ_IRM={self.lambda_irm}")
         logging.info(f"{'Epoch':<8} {'Train Loss':<14} {'Val AUROC'}")
@@ -341,9 +367,14 @@ class IRMFinetuner:
 
             if auroc > best_auroc:
                 best_auroc = auroc
+                best_state = copy.deepcopy(self.model.state_dict())
                 if save_path:
                     torch.save(self.model.state_dict(), save_path)
 
+        # Restore best-val epoch (see DROFinetuner.run for rationale).
+        if best_state is not None:
+            self.model.load_state_dict(best_state)
+            logging.info(" [IRM] restored best-val epoch weights")
         logging.info(f"\nBest IRM val AUROC: {best_auroc:.6f}")
         return history
 
@@ -372,12 +403,16 @@ class DROFinetuner:
         self.model = self.model.to(device)
 
         self.group_weights = torch.ones(n_groups) / n_groups
+        self.pos_weight = None  # set on first train_epoch (needs the loader)
 
         self.optimizer = torch.optim.AdamW(
             model.parameters(), lr=lr, weight_decay=1e-4
         )
 
     def train_epoch(self, loader):
+        if self.pos_weight is None:
+            self.pos_weight = _compute_pos_weight(loader, self.task_name, self.device)
+            logging.info(f" [DRO] pos_weight = {self.pos_weight.item():.2f}")
         self.model.train()
         epoch_losses = []
 
@@ -395,7 +430,7 @@ class DROFinetuner:
             ).squeeze(-1)
 
             per_sample_loss = F.binary_cross_entropy_with_logits(
-                logits, labels, reduction="none"
+                logits, labels, reduction="none", pos_weight=self.pos_weight
             )
             group_losses = torch.zeros(self.n_groups, device=self.device)
             group_counts = torch.zeros(self.n_groups, device=self.device)
@@ -427,6 +462,7 @@ class DROFinetuner:
     def run(self, train_loader, val_loader, n_epochs=20, save_path=None):
         history = {"train_loss": [], "val_auroc": []}
         best_auroc = 0.0
+        best_state = None
 
         logging.info(f"\nDRO Fine-tuning: {self.task_name} | n_groups={self.n_groups}")
         logging.info(f"{'Epoch':<8} {'Train Loss':<14} {'Val AUROC'}")
@@ -463,9 +499,16 @@ class DROFinetuner:
 
             if auroc > best_auroc:
                 best_auroc = auroc
+                best_state = copy.deepcopy(self.model.state_dict())
                 if save_path:
                     torch.save(self.model.state_dict(), save_path)
 
+        # Restore the best-val epoch. Without this the caller evaluates whatever
+        # the LAST epoch happened to be, which for a worst-group objective can be
+        # markedly worse than the best checkpoint.
+        if best_state is not None:
+            self.model.load_state_dict(best_state)
+            logging.info(" [DRO] restored best-val epoch weights")
         logging.info(f"\nBest DRO val AUROC: {best_auroc:.6f}")
         return history
 
