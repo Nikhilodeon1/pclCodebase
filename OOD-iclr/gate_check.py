@@ -54,8 +54,36 @@ def _binary_entropy(p, eps=1e-8):
 
 
 @torch.no_grad()
-def score_loader(model, loader, pcl_loss, task, device, mask_prob, seed=0):
-    """One inference pass -> (mean violation, mean predictive entropy).
+def source_mean_repr(model, loader, device):
+    """Mean pooled encoder representation on SOURCE (Site-A val) data.
+
+    Reference point for the representation-distance baseline: how far the target
+    domain's representation centroid sits from the source centroid.
+    """
+    tot, n = None, 0
+    for batch in loader:
+        x = batch["x"].to(device, non_blocking=True)
+        m = batch["mask"].to(device, non_blocking=True)
+        r = model.encode(x, m).mean(dim=1)          # (B, d)
+        s = r.sum(dim=0).double()
+        tot = s if tot is None else tot + s
+        n += r.shape[0]
+    return (tot / max(n, 1)) if tot is not None else None
+
+
+@torch.no_grad()
+def score_loader(model, loader, pcl_loss, task, device, mask_prob, seed=0,
+                 src_mu=None):
+    """One inference pass -> dict of label-free scores.
+
+    Scores (all lower-is-better as selection signals):
+      violation  : physiological-constraint residual (the PCL signal)
+      entropy    : predictive entropy of the sepsis head
+      recon_mse  : plain masked-reconstruction error -- the natural "generic
+                   unsupervised score" control. If violation only matches this,
+                   the physiology adds nothing beyond reconstruction quality.
+      repr_dist  : L2 distance from the source representation centroid -- the
+                   natural "domain-distance" control.
 
     The violation is computed exactly as during PCL training: on the model's
     reconstructions, at timesteps where the constraint is computable AND at least
@@ -64,10 +92,13 @@ def score_loader(model, loader, pcl_loss, task, device, mask_prob, seed=0):
     deterministic and comparable across checkpoints.
     """
     from src.models.backbone import apply_random_mask
+    from src.training.train_utils import masked_prediction_loss
 
     model.eval()
     viol_sum, viol_n = 0.0, 0
     ent_sum, ent_n = 0.0, 0
+    mse_sum, mse_n = 0.0, 0
+    rep_sum, rep_n = None, 0
 
     g = torch.Generator(device="cpu").manual_seed(seed)
     for bi, batch in enumerate(loader):
@@ -91,6 +122,12 @@ def score_loader(model, loader, pcl_loss, task, device, mask_prob, seed=0):
             viol_sum += float(np.mean(parts)) * x.shape[0]
             viol_n += x.shape[0]
 
+        # Plain masked-reconstruction error on the same masked positions.
+        mse = masked_prediction_loss(preds, x, pretrain_mask)
+        if torch.isfinite(mse):
+            mse_sum += float(mse.item()) * x.shape[0]
+            mse_n += x.shape[0]
+
         # Predictive entropy from the sepsis head on the UNMASKED input.
         reps_full = model.encode(x, m)
         logits = model.classify(reps_full, task, obs_mask=m).squeeze(-1)
@@ -99,7 +136,20 @@ def score_loader(model, loader, pcl_loss, task, device, mask_prob, seed=0):
         ent_sum += float(e.sum())
         ent_n += e.size
 
-    return (viol_sum / max(viol_n, 1), ent_sum / max(ent_n, 1))
+        # Running sum for the target representation centroid.
+        rp = reps_full.mean(dim=1).sum(dim=0).double()
+        rep_sum = rp if rep_sum is None else rep_sum + rp
+        rep_n += reps_full.shape[0]
+
+    out = {"violation": viol_sum / max(viol_n, 1),
+           "entropy": ent_sum / max(ent_n, 1),
+           "recon_mse": mse_sum / max(mse_n, 1)}
+    if src_mu is not None and rep_sum is not None and rep_n > 0:
+        tgt_mu = rep_sum / rep_n
+        out["repr_dist"] = float(torch.linalg.norm(tgt_mu - src_mu).item())
+    else:
+        out["repr_dist"] = float("nan")
+    return out
 
 
 # ── correlation / regret ─────────────────────────────────────────────────────
@@ -196,73 +246,96 @@ def main():
         model = model.to(device)
         model.load_state_dict(load_state_dict_flexible(ck[lam], device))
         scores[lam] = {}
+        src_mu = source_mean_repr(model, val_loader, device)
         for site in SITES:
             if site not in ood_loaders:
                 continue
-            v, e = score_loader(model, ood_loaders[site], pcl_loss, TASK,
-                                device, MASK_PROB, seed=args.seed)
-            scores[lam][site] = {"violation": v, "entropy": e}
-            logging.info(f"  lam={lam:>4} {site:12s} violation={v:.6f} entropy={e:.6f} "
-                         f"true_auroc={true_auroc[lam].get(site)}")
+            s = score_loader(model, ood_loaders[site], pcl_loss, TASK,
+                             device, MASK_PROB, seed=args.seed, src_mu=src_mu)
+            scores[lam][site] = s
+            logging.info(f"  lam={lam:>4} {site:12s} viol={s['violation']:.6f} "
+                         f"ent={s['entropy']:.6f} mse={s['recon_mse']:.6f} "
+                         f"rdist={s['repr_dist']:.4f} true={true_auroc[lam].get(site)}")
         del model
         if device == "cuda":
             torch.cuda.empty_cache()
 
     # ── pooled correlations over (lambda, site) cells ────────────────────────
+    SIGNALS = ["violation", "entropy", "recon_mse", "repr_dist"]
     cells = []
     for lam in scores:
         for site, s in scores[lam].items():
             a = true_auroc[lam].get(site)
             if a is None:
                 continue
-            cells.append((lam, site, s["violation"], s["entropy"], a))
-    v_rho = spearman([c[2] for c in cells], [c[4] for c in cells])
-    e_rho = spearman([c[3] for c in cells], [c[4] for c in cells])
+            cells.append({"lam": lam, "site": site, "auroc": a, **{k: s[k] for k in SIGNALS}})
+
+    def _rho(sig, subset=None):
+        cs = subset if subset is not None else cells
+        cs = [c for c in cs if c[sig] == c[sig]]  # drop NaN
+        return spearman([c[sig] for c in cs], [c["auroc"] for c in cs])
+
+    rhos = {s: _rho(s) for s in SIGNALS}
+    # Robustness: lambda=0 never saw the constraint loss, so verify the signal is
+    # not carried by that single configuration.
+    nz = [c for c in cells if float(c["lam"]) > 0]
+    rhos_nz = {s: _rho(s, nz) for s in SIGNALS}
+    rhos_site = {st: {s: _rho(s, [c for c in cells if c["site"] == st]) for s in SIGNALS}
+                 for st in SITES}
 
     # ── per-site selection regret ────────────────────────────────────────────
     reg = {}
     for site in SITES:
         au = {l: true_auroc[l].get(site) for l in scores if site in scores[l]}
-        vi = {l: scores[l][site]["violation"] for l in scores if site in scores[l]}
-        en = {l: scores[l][site]["entropy"] for l in scores if site in scores[l]}
-        va = {l: true_auroc[l].get("val") for l in scores if site in scores[l]}
-        r_v, p_v = regret(vi, au, lower_is_better=True)
-        r_e, p_e = regret(en, au, lower_is_better=True)
-        r_s, p_s = regret(va, au, lower_is_better=False)   # Site-A val selection
         lams = [l for l in au if au[l] is not None]
-        rand = float(np.mean([au[l] for l in lams]) - max(au[l] for l in lams)) if lams else float("nan")
-        reg[site] = {"violation": {"regret": r_v, "picked": p_v},
-                     "entropy":   {"regret": r_e, "picked": p_e},
-                     "site_a_val": {"regret": r_s, "picked": p_s},
-                     "random_lambda_expected": rand,
-                     "best_lambda": (max(lams, key=lambda l: au[l]) if lams else None)}
+        entry = {}
+        for sig in SIGNALS:
+            sc = {l: scores[l][site][sig] for l in scores if site in scores[l]}
+            sc = {l: v for l, v in sc.items() if v == v}
+            r, p = regret(sc, au, lower_is_better=True)
+            entry[sig] = {"regret": r, "picked": p}
+        va = {l: true_auroc[l].get("val") for l in scores if site in scores[l]}
+        r_s, p_s = regret(va, au, lower_is_better=False)   # Site-A val selection
+        entry["site_a_val"] = {"regret": r_s, "picked": p_s}
+        entry["random_lambda_expected"] = (
+            float(np.mean([au[l] for l in lams]) - max(au[l] for l in lams))
+            if lams else float("nan"))
+        entry["best_lambda"] = max(lams, key=lambda l: au[l]) if lams else None
+        reg[site] = entry
 
-    out = {"n_cells": len(cells),
-           "spearman_violation_vs_auroc": v_rho,
-           "spearman_entropy_vs_auroc": e_rho,
+    out = {"n_cells": len(cells), "signals": SIGNALS,
+           "spearman_all": rhos, "spearman_excl_lambda0": rhos_nz,
+           "spearman_within_site": rhos_site,
            "scores": scores, "true_auroc": true_auroc, "regret": reg}
     os.makedirs(os.path.dirname(args.out), exist_ok=True)
     with open(args.out, "w") as f:
         json.dump(out, f, indent=2)
 
     # ── report ───────────────────────────────────────────────────────────────
-    print("\n" + "=" * 68)
-    print(f"GATE CHECK  ({len(cells)} (lambda, site) cells)")
-    print("=" * 68)
-    print("Spearman rho vs true OOD AUROC   (negative = good selector;")
-    print("                                  'aligned' flips sign for readability)")
-    print(f"  violation : rho = {v_rho:+.3f}   aligned = {-v_rho:+.3f}")
-    print(f"  entropy   : rho = {e_rho:+.3f}   aligned = {-e_rho:+.3f}")
+    # All signals are lower-is-better, so a NEGATIVE rho means a GOOD selector.
+    # Only raw rho is printed (no sign-flipped column) to avoid misreading.
+    print("\n" + "=" * 78)
+    print(f"GATE CHECK  ({len(cells)} (lambda, site) cells)   [seed {args.seed}]")
+    print("=" * 78)
+    print("Spearman rho vs true OOD AUROC. All signals are lower-is-better,")
+    print("so MORE NEGATIVE rho = BETTER selector. Raw rho only.")
+    print(f"{'signal':<12}{'all':>10}{'excl lam=0':>12}" + "".join(f"{s:>14}" for s in SITES))
+    for s in SIGNALS:
+        row = f"{s:<12}{rhos[s]:>10.3f}{rhos_nz[s]:>12.3f}"
+        row += "".join(f"{rhos_site[st][s]:>14.3f}" for st in SITES)
+        print(row)
     print("\nSelection regret (true AUROC of picked lambda - best achievable; 0 = perfect)")
-    print(f"{'site':<13}{'violation':>22}{'entropy':>22}{'site-A val':>22}{'random':>10}")
+    hdr = f"{'site':<13}" + "".join(f"{s:>22}" for s in SIGNALS) + f"{'site-A val':>22}{'random':>10}"
+    print(hdr)
     for site in SITES:
         if site not in reg:
             continue
         r = reg[site]
-        f = lambda d: (f"{d['regret']:+.4f} (lam={d['picked']})"
-                       if d["regret"] == d["regret"] else "n/a")
-        print(f"{site:<13}{f(r['violation']):>22}{f(r['entropy']):>22}"
-              f"{f(r['site_a_val']):>22}{r['random_lambda_expected']:>10.4f}")
+        fmt = lambda d: (f"{d['regret']:+.4f} (l={d['picked']})"
+                         if d["regret"] == d["regret"] else "n/a")
+        row = f"{site:<13}" + "".join(f"{fmt(r[s]):>22}" for s in SIGNALS)
+        row += f"{fmt(r['site_a_val']):>22}{r['random_lambda_expected']:>10.4f}"
+        print(row)
     print(f"\nWrote {args.out}")
 
 
