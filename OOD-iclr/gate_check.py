@@ -146,14 +146,23 @@ def main():
     ap.add_argument("--seed", type=int, default=0)
     args = ap.parse_args()
 
-    from config import CACHE_DIR, MASK_PROB, TEST_MODE
+    from config import CACHE_DIR, MASK_PROB, TEST_MODE, D_MODEL, N_LAYERS
     from run_paper_experiments import load_all_data, make_ood_loaders, TASK
     from src.baselines import fresh_model
     from src.losses.pcl_loss import PhysiologicalConstraintLoss
     from src.training.train_utils import load_state_dict_flexible
 
+    # The sweep checkpoints are PRODUCTION-sized (d_model=256, 6 layers) and were
+    # trained on full data. Running here in test mode builds a d_model=64/2-layer
+    # model and loads demo data, which fails with an opaque state_dict size
+    # mismatch -- fail loudly and early instead.
+    if TEST_MODE:
+        sys.exit("ABORT: PCL_TEST_MODE=1 (default). This must run in PRODUCTION mode "
+                 "against the full-scale checkpoints/cache.\n"
+                 "  Fix: source runpod_env.sh   (or export PCL_TEST_MODE=0 plus data paths)")
+
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    logging.info(f"device={device}  TEST_MODE={TEST_MODE}  CACHE_DIR={CACHE_DIR}")
+    logging.info(f"device={device}  d_model={D_MODEL} n_layers={N_LAYERS}  CACHE_DIR={CACHE_DIR}")
 
     # True OOD AUROC per (lambda, site) from the completed sweep.
     with open(args.results) as f:
