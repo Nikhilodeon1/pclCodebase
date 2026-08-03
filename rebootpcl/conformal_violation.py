@@ -167,13 +167,24 @@ def main():
         model = model.to(device)
         model.load_state_dict(load_state_dict_flexible(args.ckpt, device))
 
+        # Persist each site the moment it finishes. eICU alone is 130k samples;
+        # a failure there must not discard the sites already scored, and a rerun
+        # should resume rather than start over.
         blob = {}
         for name, loader in [("SiteA-cal", val_loader)] + [
                 (s, ood_loaders[s]) for s in SITES if s in ood_loaders]:
-            p, y, v = score_loader(model, loader, TASK, device)
+            part = os.path.join(HERE, f"_part_{name}.npz")
+            if os.path.exists(part) and not args.refresh:
+                pd_ = np.load(part)
+                p, y, v = pd_["p"], pd_["y"], pd_["v"]
+                logging.info(f"  {name:12s} loaded from {os.path.basename(part)} "
+                             f"(n={len(p)})")
+            else:
+                p, y, v = score_loader(model, loader, TASK, device)
+                np.savez_compressed(part, p=p, y=y, v=v)
+                logging.info(f"  {name:12s} n={len(p):7d} pos={y.mean():.3f} "
+                             f"mean_viol={v.mean():.5f}  -> {os.path.basename(part)}")
             blob[f"{name}__p"], blob[f"{name}__y"], blob[f"{name}__v"] = p, y, v
-            logging.info(f"  {name:12s} n={len(p):7d} pos={y.mean():.3f} "
-                         f"mean_viol={v.mean():.5f}")
         np.savez_compressed(CACHE, **blob)
         logging.info(f"cached -> {CACHE}")
     else:
