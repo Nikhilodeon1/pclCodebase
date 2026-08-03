@@ -29,7 +29,7 @@ Usage (from repo root, on the machine holding the checkpoints + preprocessed cac
 
     source runpod_env.sh
     PCL_EXPANDED_VARS=1 CACHE_DIR=cache_v17_prod \
-        python rebootPCL/conformal_violation.py \
+        python rebootpcl/conformal_violation.py \
             --ckpt results_lambda17/ckpt/lambda_0.0_sepsis.pt
 """
 import os
