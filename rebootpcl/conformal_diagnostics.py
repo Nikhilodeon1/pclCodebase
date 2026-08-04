@@ -43,6 +43,14 @@ def evaluate(p, y, extra, thr):
     return float(cov.mean()), float(size.mean()), float((size == 0).mean())
 
 
+def size_dist(p, y, extra, thr):
+    """Fraction of samples with |set| = 0, 1, 2. Only |set| = 1 is actionable:
+    |set| = 2 asserts nothing, |set| = 0 predicts nothing."""
+    s1, s0 = (1.0 - p) + extra, p + extra
+    size = (s1 <= thr).astype(int) + (s0 <= thr).astype(int)
+    return tuple(float((size == k).mean()) for k in (0, 1, 2))
+
+
 def main():
     path = sys.argv[1] if len(sys.argv) > 1 else os.path.join(HERE, "per_sample_scores.npz")
     if not os.path.exists(path):
@@ -78,6 +86,16 @@ def main():
         mc, ms, _ = evaluate(p, y, np.full(len(p), z(v.mean())), thr_s if name == CAL else thr_a)
         rows[name] = dict(base=(bc, bs), aug=(ac, asz), smean=(mc, ms))
         print(f"{name:<14}{bc:>10.3f}{bs:>9.3f}{ac:>9.3f}{asz:>8.3f}{mc:>10.3f}{ms:>9.3f}")
+    print("")
+    print("Set-size distribution  (|1| is the only actionable outcome)")
+    print(f"{'Site':<14}{'method':<10}{'|0| empty':>11}{'|1| single':>12}{'|2| both':>10}")
+    for _n in [CAL] + SITES:
+        if f"{_n}__p" not in d:
+            continue
+        _p, _y, _v = d[f"{_n}__p"], d[f"{_n}__y"], d[f"{_n}__v"]
+        for _lbl, _ex, _th in (("baseline", 0.0, thr_b), ("augmented", z(_v), thr_a)):
+            _e, _o, _t = size_dist(_p, _y, _ex, _th)
+            print(f"{_n:<14}{_lbl:<10}{_e:>11.3f}{_o:>12.3f}{_t:>10.3f}")
     print("\nIf 'mean' matches 'aug', the per-sample violation adds nothing.")
     gaps = [abs(rows[s]['aug'][0] - rows[s]['smean'][0]) for s in SITES if s in rows]
     szg = [abs(rows[s]['aug'][1] - rows[s]['smean'][1]) for s in SITES if s in rows]
@@ -101,8 +119,10 @@ def main():
         for a, t in zip(alphas, thrs):
             c, s, _ = evaluate(p, y, 0.0, t)
             if c >= target_cov:
-                best = (a, s, c)      # first alpha reaching the target coverage
-                break
+                best = (a, s, c)      # keep updating -> ends on the LARGEST
+                                      # alpha still meeting coverage (smallest
+                                      # sets). Breaking here would report the
+                                      # most degenerate baseline instead.
         if best is None:
             print(f"{name:<14}{target_cov:>9.3f}{aug_sz:>9.3f}{'unreachable':>22}{'-':>9}{'aug wins':>12}")
             continue
