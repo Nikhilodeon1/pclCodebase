@@ -1,0 +1,8 @@
+torch>=2.11.0
+numpy==2.4.3
+pandas==3.0.1
+scikit-learn==1.8.0
+matplotlib==3.10.9
+scipy==1.17.0
+xgboost==3.2.0
+gdown==6.0.0

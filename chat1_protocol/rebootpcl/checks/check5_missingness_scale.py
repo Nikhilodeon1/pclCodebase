@@ -1,0 +1,189 @@
+"""
+CHECK 5 — missingness/scale-driven artifacts in aggregate cross-site scores.
+
+Confound: a score that aggregates several component terms, each computable only
+when its inputs happen to be recorded, will move across sites when RECORDING
+PRACTICE changes -- even if nothing physiological differs. If the components also
+occupy different magnitude ranges, a site that records the large-magnitude
+component more often scores higher for purely administrative reasons.
+
+Diagnostic, three parts:
+  (a) component availability ratio between the two sites;
+  (b) component magnitude spread (how unequal the terms are);
+  (c) a composition-only control -- recompute each stay's aggregate using POOLED
+      component values shared by both sites, so component magnitude is held fixed
+      and only the active-set composition can vary. Whatever gap survives is
+      produced by recording practice alone.
+
+Flag when availability is skewed AND composition alone explains a large share of
+the observed gap. Aggregation is per stay, matching how the audited score works;
+aggregating at the site level averages the effect away.
+
+Validation: PhysioNet Site A vs Site B is the positive case (known artifact,
+50-fold difference in bicarbonate charting). A random split of Site A against
+itself is the negative control -- identical recording practice, so the check must
+stay silent.
+
+Runs on raw PSV files. No model, no GPU.
+"""
+import os
+import sys
+
+import numpy as np
+import pandas as pd
+
+ROOT = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
+    os.path.abspath(__file__)))), "data", "physionet2019")
+
+AVAIL_RATIO_FLAG = 2.0     # component availability differing by more than this
+COMP_EXPLAINS_FLAG = 0.30  # composition alone must explain >30% of the gap
+
+
+def components(df):
+    """Per-timestep residuals for each constraint, normalized to comparable units.
+    Returns {name: array} using only timesteps where that constraint is computable."""
+    out = {}
+    c = df.columns
+    if all(k in c for k in ("SBP", "DBP", "MAP")):
+        m = df[["SBP", "DBP", "MAP"]].dropna()
+        if len(m):
+            out["MAP"] = np.abs((m.MAP - (m.DBP + (m.SBP - m.DBP) / 3.0)) / 180.0).values
+    if all(k in c for k in ("pH", "HCO3", "PaCO2")):
+        m = df[["pH", "HCO3", "PaCO2"]].dropna()
+        m = m[(m.HCO3 > 0) & (m.PaCO2 > 0)]
+        if len(m):
+            pred = 6.1 + np.log10(m.HCO3 / (0.0307 * m.PaCO2))
+            out["HH"] = (((m.pH - pred) / 1.4) ** 2).values
+    if "O2Sat" in c and "SaO2" in c:
+        m = df[["O2Sat", "SaO2"]].dropna()
+        if len(m):
+            out["SpO2"] = (((m.O2Sat - m.SaO2) / 50.0) ** 2).values
+    return out
+
+
+def scan(files):
+    """Per-STAY component residuals.
+
+    The score being audited aggregates per sample: each stay averages over the
+    constraints computable FOR THAT STAY. Aggregating at the site level instead
+    averages away the very composition effect we are trying to detect, so we keep
+    stay-level structure here.
+
+    Returns (list of {component: mean residual for that stay}, total timesteps).
+    """
+    stays, hours = [], 0
+    for path in files:
+        df = pd.read_csv(path, sep="|")
+        hours += len(df)
+        comp = components(df)
+        if comp:
+            stays.append({k: float(v.mean()) for k, v in comp.items() if len(v)})
+    return stays, hours
+
+
+def run_check(name_a, files_a, name_b, files_b, verbose=True):
+    A, hA = scan(files_a)
+    B, hB = scan(files_b)
+    keys = ["MAP", "HH", "SpO2"]
+
+    def avail(stays, k):
+        return sum(1 for s in stays if k in s) / max(len(stays), 1)
+
+    def comp_mean(stays, k):
+        v = [s[k] for s in stays if k in s]
+        return float(np.mean(v)) if v else np.nan
+
+    # Pooled per-component level, shared by both sites. Used to hold component
+    # MAGNITUDE fixed so only the active-set composition can vary.
+    pooled = {}
+    for k in keys:
+        v = [s[k] for s in A + B if k in s]
+        pooled[k] = float(np.mean(v)) if v else np.nan
+
+    def aggregate(stays, use_pooled):
+        """Mean over stays of (mean over that stay's ACTIVE components)."""
+        out = []
+        for st in stays:
+            vals = [pooled[k] if use_pooled else st[k] for k in keys if k in st]
+            if vals:
+                out.append(float(np.mean(vals)))
+        return float(np.mean(out)) if out else np.nan
+
+    naive = (aggregate(A, False), aggregate(B, False))
+    # Composition-only: identical component values for both sites, so any
+    # remaining gap is produced purely by WHICH components are available.
+    comp_only = (aggregate(A, True), aggregate(B, True))
+
+    rel = lambda t: abs(t[0] - t[1]) / max(abs(t[0]), abs(t[1]), 1e-12)
+    naive_gap, comp_gap = rel(naive), rel(comp_only)
+    explained = (comp_gap / naive_gap) if naive_gap > 1e-9 else 0.0
+
+    max_ratio = 0.0
+    for k in keys:
+        a, b = avail(A, k), avail(B, k)
+        if a > 0 and b > 0:
+            max_ratio = max(max_ratio, max(a / b, b / a))
+        elif a != b:
+            max_ratio = float("inf")
+
+    flagged = (max_ratio > AVAIL_RATIO_FLAG) and (explained > COMP_EXPLAINS_FLAG)
+
+    if verbose:
+        print(f"")
+        print(f"--- {name_a}  vs  {name_b} ---")
+        print(f"{'component':<10}{'avail A':>10}{'avail B':>10}{'ratio':>9}"
+              f"{'mean A':>11}{'mean B':>11}{'scale':>8}")
+        base = pooled["MAP"]
+        for k in keys:
+            a, b = avail(A, k), avail(B, k)
+            r = max(a, b) / min(a, b) if min(a, b) > 0 else float("inf")
+            ma, mb = comp_mean(A, k), comp_mean(B, k)
+            print(f"{k:<10}{a:>10.4f}{b:>10.4f}{r:>9.1f}{ma:>11.5f}{mb:>11.5f}"
+                  f"{pooled[k]/base:>8.2f}")
+        print(f"  aggregate, as scored      : {naive[0]:.5f} vs {naive[1]:.5f}"
+              f"   (relative gap {naive_gap:.3f})")
+        print(f"  aggregate, composition-only: {comp_only[0]:.5f} vs {comp_only[1]:.5f}"
+              f"   (relative gap {comp_gap:.3f})")
+        print(f"  max availability ratio {max_ratio:.1f} (flag > {AVAIL_RATIO_FLAG})")
+        print(f"  share of gap explained by composition alone: {explained:.2f} "
+              f"(flag > {COMP_EXPLAINS_FLAG})")
+        print(f"  ==> {'FLAGGED: composition artifact' if flagged else 'clean'}")
+    return flagged
+
+
+def main():
+    n = int(sys.argv[1]) if len(sys.argv) > 1 else 1500
+    a_dir = os.path.join(ROOT, "training_setA")
+    b_dir = os.path.join(ROOT, "training_setB")
+    if not os.path.isdir(a_dir):
+        sys.exit(f"missing {a_dir}")
+    fa = [os.path.join(a_dir, f) for f in sorted(os.listdir(a_dir))[:2 * n]
+          if f.endswith(".psv")]
+    fb = [os.path.join(b_dir, f) for f in sorted(os.listdir(b_dir))[:n]
+          if f.endswith(".psv")]
+
+    print("=" * 78)
+    print("CHECK 5 — missingness/scale artifacts in aggregate cross-site scores")
+    print("=" * 78)
+    print(f"(sampling {n} stays per arm)")
+
+    # POSITIVE: two genuinely different sites, known differing lab practice.
+    pos = run_check("PhysioNet Site A", fa[:n], "PhysioNet Site B", fb)
+
+    # NEGATIVE CONTROL: Site A split against itself. Same recording practice, so
+    # a well-behaved detector must stay silent.
+    rng = np.random.default_rng(0)
+    idx = rng.permutation(len(fa))
+    half = len(fa) // 2
+    neg = run_check("Site A (half 1)", [fa[i] for i in idx[:half]],
+                    "Site A (half 2)", [fa[i] for i in idx[half:]])
+
+    print("\n" + "-" * 78)
+    print(f"positive case flagged : {pos}   (expected True)")
+    print(f"negative control flagged: {neg}   (expected False)")
+    ok = pos and not neg
+    print("verdict:", "DETECTOR VALIDATED" if ok else "NEEDS WORK")
+
+
+if __name__ == "__main__":
+    main()

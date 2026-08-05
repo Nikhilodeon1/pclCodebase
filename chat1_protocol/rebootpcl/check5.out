@@ -1,0 +1,31 @@
+==============================================================================
+CHECK 5 — missingness/scale artifacts in aggregate cross-site scores
+==============================================================================
+(sampling 1200 stays per arm)
+
+--- PhysioNet Site A  vs  PhysioNet Site B ---
+component    avail A   avail B    ratio     mean A     mean B   scale
+MAP           0.9355    1.0000      1.1    0.01991    0.02141    1.00
+HH            0.6083    0.0167     36.4    0.00076    0.00042    0.04
+SpO2          0.5572    0.2331      2.4    0.06114    0.01014    2.01
+  aggregate, as scored      : 0.02619 vs 0.02040   (relative gap 0.221)
+  aggregate, composition-only: 0.02062 vs 0.02310   (relative gap 0.107)
+  max availability ratio 36.4 (flag > 2.0)
+  share of gap explained by composition alone: 0.49 (flag > 0.3)
+  ==> FLAGGED: composition artifact
+
+--- Site A (half 1)  vs  Site A (half 2) ---
+component    avail A   avail B    ratio     mean A     mean B   scale
+MAP           0.9381    0.9461      1.0    0.01930    0.01980    1.00
+HH            0.5983    0.6347      1.1    0.00069    0.00071    0.04
+SpO2          0.5485    0.5772      1.1    0.06529    0.06205    3.25
+  aggregate, as scored      : 0.02658 vs 0.02715   (relative gap 0.021)
+  aggregate, composition-only: 0.02479 vs 0.02519   (relative gap 0.016)
+  max availability ratio 1.1 (flag > 2.0)
+  share of gap explained by composition alone: 0.76 (flag > 0.3)
+  ==> clean
+
+------------------------------------------------------------------------------
+positive case flagged : True   (expected True)
+negative control flagged: False   (expected False)
+verdict: DETECTOR VALIDATED

@@ -1,0 +1,26 @@
+C:\Users\nikhi\Codes\pclCodebase\src\models\backbone.py:90: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
+  self.encoder = nn.TransformerEncoder(encoder_layer, num_layers=n_layers)
+C:\Users\nikhi\Codes\pclCodebase\src\models\backbone.py:90: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
+  self.encoder = nn.TransformerEncoder(encoder_layer, num_layers=n_layers)
+==============================================================================
+CHECK 2 — non-zero-shot pretraining leakage
+==============================================================================
+model d=64 layers=2 | device=cpu | 900 stays/site | 3 seeds | 3 epochs
+source=627  leak pool=675  probe=225 (probe never pretrained on)
+  leakage   0%  (n_leak=   0)  probe loss 0.007099 +/- 0.000649   [0.00783, 0.00687, 0.0066]
+  leakage   5%  (n_leak=  34)  probe loss 0.006785 +/- 0.000469   [0.00732, 0.00658, 0.00645]
+  leakage  20%  (n_leak= 135)  probe loss 0.006392 +/- 0.000435   [0.00689, 0.0062, 0.00608]
+  leakage 100%  (n_leak= 675)  probe loss 0.005879 +/- 0.000144   [0.00604, 0.00578, 0.00581]
+
+null (0% leakage): mean=0.007099 sd=0.000649   (unpaired spread — large, hence the paired test below)
+
+  leakage   probe loss   paired rel. delta       t   agree  detected
+       0%     0.007099                0.0%    0.00   False     False
+       5%     0.006785               -4.3%   -3.51    True      True
+      20%     0.006392               -9.8%   -8.06    True      True
+     100%     0.005879              -16.9%   -5.28    True      True
+
+------------------------------------------------------------------------------
+false positive at 0% leakage: False   (must be False)
+detection floor: 5% leakage
+verdict: DETECTOR VALIDATED

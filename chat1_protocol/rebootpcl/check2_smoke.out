@@ -1,0 +1,26 @@
+C:\Users\nikhi\Codes\pclCodebase\src\models\backbone.py:90: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
+  self.encoder = nn.TransformerEncoder(encoder_layer, num_layers=n_layers)
+C:\Users\nikhi\Codes\pclCodebase\src\models\backbone.py:90: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
+  self.encoder = nn.TransformerEncoder(encoder_layer, num_layers=n_layers)
+==============================================================================
+CHECK 2 — non-zero-shot pretraining leakage
+==============================================================================
+model d=64 layers=2 | device=cpu | 300 stays/site | 2 seeds | 2 epochs
+source=300  leak pool=225  probe=75 (probe never pretrained on)
+  leakage   0%  (n_leak=   0)  probe loss 0.012666 +/- 0.004769   [0.01604, 0.00929]
+  leakage   5%  (n_leak=  11)  probe loss 0.010986 +/- 0.003751   [0.01364, 0.00833]
+  leakage  20%  (n_leak=  45)  probe loss 0.009680 +/- 0.002266   [0.01128, 0.00808]
+  leakage 100%  (n_leak= 225)  probe loss 0.007147 +/- 0.001153   [0.00796, 0.00633]
+
+null (0% leakage): mean=0.012666 sd=0.004769
+
+  leakage   probe loss   delta vs 0%       z  detected
+       0%     0.012666      0.000000    0.00     False
+       5%     0.010986     -0.001681   -0.35     False
+      20%     0.009680     -0.002986   -0.63     False
+     100%     0.007147     -0.005519   -1.16     False
+
+------------------------------------------------------------------------------
+false positive at 0% leakage: False   (must be False)
+detection floor: NOT DETECTED at any level tested
+verdict: INCONCLUSIVE — leak not separable from seed noise at this scale
