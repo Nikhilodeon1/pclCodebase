@@ -1,0 +1,68 @@
+==============================================================================
+DETECTOR 5 — external validation (pre-registered)
+==============================================================================
+loading external sites ...
+INFO:root:[A1/SOFA eICU mode=single] 95/1623 sepsis+ (5.9%); window=8.9% single-point=5.9%; infection in 148 stays
+INFO:root:eICU: loading 1623 stays
+INFO:root:eICU: reading vitalPeriodic (chunked)...
+INFO:root:eICU: reading vitalAperiodic (chunked)...
+INFO:root:eICU: reading lab (chunked)...
+INFO:root:eICU: reading nurseCharting (chunked)...
+INFO:root:eICU: 1563 stays loaded, skipped: {'empty': 5, 'no_hemo': 55}
+INFO:root:MIMIC-IV: loading 117 stays
+INFO:root:[A1/SOFA MIMIC mode=single] 44/117 sepsis+ (37.6%); window=55.6% single-point=37.6%; infection in 77 stays
+INFO:root:MIMIC-IV: reading chartevents (chunked)...
+INFO:root:  [read chartevents.csv.gz] 2 ... 1s elapsed | 668,862 rows scanned, 85,806 kept (done)
+INFO:root:MIMIC-IV: reading labevents (chunked)...
+INFO:root:  [read labevents.csv.gz] 1 ... 0s elapsed | 107,727 rows scanned, 11,833 kept (done)
+INFO:root:MIMIC-IV: 117 stays loaded, skipped: {'empty': 0, 'no_hemo': 0}
+eICU 1563 stays | MIMIC-IV 117 stays
+components: ['MAP', 'HH', 'Severinghaus'] (oxygen term is Severinghaus, not the PhysioNet O2Sat-vs-SaO2 pair)
+E4 uses 800 PhysioNet stays per arm, 5 seeds
+
+==============================================================================
+VARIANT A_conjunction
+==============================================================================
+  seed 0 done
+  seed 1 done
+  seed 2 done
+  seed 3 done
+  seed 4 done
+
+  E1 ablation 50%                    flagged 1/5  expected=True  avail_ratio=1.7  share=0.598
+  E1 ablation 80%                    flagged 4/5  expected=True  avail_ratio=3.5  share=0.717
+  E1 ablation 95%                    flagged 4/5  expected=True  avail_ratio=inf  share=0.936
+  E2 eICU split, no ablation         flagged 0/5  expected=False  avail_ratio=1.1  share=0.284
+  E4 PhysioNet A vs itself           flagged 0/5  expected=False  avail_ratio=1.1  share=1.414
+
+  A_conjunction               TP=9  FP=0  FN=6  TN=10 prec=1.00 rec=0.60 fpr=0.00
+
+  E3 (MIMIC vs eICU, NOT SCORED): flagged=True  avail_ratio=3.1  share=0.584
+==============================================================================
+VARIANT B_availability_only
+==============================================================================
+  seed 0 done
+  seed 1 done
+  seed 2 done
+  seed 3 done
+  seed 4 done
+
+  E1 ablation 50%                    flagged 1/5  expected=True  avail_ratio=1.7  share=0.598
+  E1 ablation 80%                    flagged 5/5  expected=True  avail_ratio=3.5  share=0.717
+  E1 ablation 95%                    flagged 5/5  expected=True  avail_ratio=inf  share=0.936
+  E2 eICU split, no ablation         flagged 0/5  expected=False  avail_ratio=1.1  share=0.284
+  E4 PhysioNet A vs itself           flagged 0/5  expected=False  avail_ratio=1.1  share=1.414
+
+  B_availability_only         TP=11 FP=0  FN=4  TN=10 prec=1.00 rec=0.73 fpr=0.00
+
+  E3 (MIMIC vs eICU, NOT SCORED): flagged=True  avail_ratio=3.1  share=0.584
+
+==============================================================================
+PRE-REGISTERED DECISION RULE
+==============================================================================
+  B false positives on E2/E4: none
+  E1 ablation 50%          A 0.20   B 0.20
+  E1 ablation 80%          A 0.80   B 1.00
+  E1 ablation 95%          A 0.80   B 1.00
+
+Adoption of B additionally requires detection at a strictly lower ablation level than A, consistent in sign across seeds.
