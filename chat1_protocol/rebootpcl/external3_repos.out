@@ -1,0 +1,39 @@
+==============================================================================
+DETECTOR 3 — third-party repositories (PRE-EXTENSION, unmodified)
+==============================================================================
+  DomainBed              b93c22a1cfc3  NOT clinical (disclosed)
+      Gulrajani & Lopez-Paz, In Search of Lost Domain Generalization, ICLR 2021
+  mimic3-benchmarks      ea0314c7cbd3  clinical
+      Harutyunyan et al., Multitask learning and benchmarking with clinical time series data, Sci Data 2019
+  MIMIC_Extract          d8d2dea55128  clinical
+      Wang et al., MIMIC-Extract, CHIL 2020
+  HIRID-ICU-Benchmark    bee770094bf8  clinical
+      Yeche et al., HiRID-ICU-Benchmark, NeurIPS Datasets & Benchmarks 2021
+
+DomainBed            model_selection.py           expected=FLAG  verdict=INDETERMINATE  -> FN (no sweep recognised)
+DomainBed            sweep.py                     expected=clean verdict=INDETERMINATE  -> no credit (no sweep recognised)
+mimic3-benchmarks    main.py                      expected=clean verdict=INDETERMINATE  -> no credit (no sweep recognised)
+mimic3-benchmarks    main.py                      expected=clean verdict=INDETERMINATE  -> no credit (no sweep recognised)
+
+PRE-EXTENSION (detector as written):  TP=0  FP=0  FN=1  TN=0   (recognised a sweep in 0/4 files)
+
+INDETERMINATE is NOT counted as a true negative. The detector did not analyse those files and judge them clean; it failed to recognise a sweep in them at all. Counting them as TN would credit non-detection as specificity.
+
+==============================================================================
+POST-EXTENSION (vocabulary FITTED to these repositories)
+==============================================================================
+  +val: env_out_acc, in_splits, train_envs, val_X, val_acc, val_data, val_gen, val_reader
+  +ood: out_splits, target_data, test_X, test_data, test_env, test_envs, test_gen, test_in_acc, test_out_acc, test_reader
+  +eval_fns: accuracy, predict, predict_proba, print_metrics_binary, run_acc, score, sweep_acc, test, validate
+  +train_fns: Trainer, fit, main, run_experiment, train, train_epoch, train_step
+  +hints: acc, collect, hparam, hyperparam, main, run, select
+
+DomainBed            model_selection.py           expected=FLAG  verdict=INDETERMINATE  -> FN (no sweep recognised)
+DomainBed            sweep.py                     expected=clean verdict=INDETERMINATE  -> no credit (no sweep recognised)
+mimic3-benchmarks    main.py                      expected=clean verdict=INDETERMINATE  -> no credit (no sweep recognised)
+mimic3-benchmarks    main.py                      expected=clean verdict=INDETERMINATE  -> no credit (no sweep recognised)
+
+POST-EXTENSION (fitted):  TP=0  FP=0  FN=1  TN=0   (recognised a sweep in 0/4 files)
+
+------------------------------------------------------------------------------
+The extended vocabulary recognised a sweep in NO additional file. Detector 3's failure on external code is therefore STRUCTURAL, not lexical: it looks for a function whose name carries a sweep hint, which calls a training function inside a loop, and which then calls an evaluation function whose loader argument can be traced to a named val/OOD variable. Third-party selection code does not take that shape -- DomainBed selects by argmax over a table of recorded metrics, with no training call anywhere in the selecting function. Renaming would not have fixed this, so the post-extension arm is reported as a NEGATIVE RESULT rather than as a fitted improvement.

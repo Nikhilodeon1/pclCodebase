@@ -28,9 +28,34 @@ OOD_NAMES = {"ood_loaders", "ood_loader", "test_loaders", "target_loader",
              "test_loader"}
 EVAL_FNS = {"evaluate_model", "evaluate", "eval_on_loaders", "score_model"}
 SWEEP_HINTS = ("lambda", "sweep", "grid", "ablation", "search", "tune")
+TRAIN_FNS = {"train_model"}
+
+# The four knobs above are this project's naming conventions. They are grouped
+# into a Vocab so an EXTENDED vocabulary can be supplied without editing the
+# defaults, which keeps "as written" and "fitted to external code" separable and
+# lets the difference between them be reported as a diff.
+class Vocab:
+    def __init__(self, val=None, ood=None, eval_fns=None, train_fns=None,
+                 hints=None):
+        self.val = set(val or VAL_NAMES)
+        self.ood = set(ood or OOD_NAMES)
+        self.eval_fns = set(eval_fns or EVAL_FNS)
+        self.train_fns = set(train_fns or TRAIN_FNS)
+        self.hints = tuple(hints or SWEEP_HINTS)
+
+    def diff(self, other):
+        """What this vocabulary adds relative to `other`."""
+        return {"val": sorted(self.val - other.val),
+                "ood": sorted(self.ood - other.ood),
+                "eval_fns": sorted(self.eval_fns - other.eval_fns),
+                "train_fns": sorted(self.train_fns - other.train_fns),
+                "hints": sorted(set(self.hints) - set(other.hints))}
 
 
-def _origin(node, env):
+DEFAULT_VOCAB = None   # built after the module-level names exist
+
+
+def _origin(node, env, vocab=None):
     """Resolve an expression back to 'val', 'ood', or None.
 
     Handles the three shapes that actually occur: a bare name, a subscript such
@@ -38,32 +63,34 @@ def _origin(node, env):
     (the buggy code used `ood_loaders[n] if n else val_loader`, which is OOD
     whenever any OOD site exists).
     """
+    vocab = vocab or DEFAULT_VOCAB
     if isinstance(node, ast.Name):
-        if node.id in VAL_NAMES:
+        if node.id in vocab.val:
             return "val"
-        if node.id in OOD_NAMES:
+        if node.id in vocab.ood:
             return "ood"
         return env.get(node.id)
     if isinstance(node, ast.Subscript):
-        return _origin(node.value, env)
+        return _origin(node.value, env, vocab)
     if isinstance(node, ast.IfExp):
-        a, b = _origin(node.body, env), _origin(node.orelse, env)
+        a, b = _origin(node.body, env, vocab), _origin(node.orelse, env, vocab)
         return "ood" if "ood" in (a, b) else a or b
     if isinstance(node, ast.Call):
         for a in node.args:
-            o = _origin(a, env)
+            o = _origin(a, env, vocab)
             if o:
                 return o
     return None
 
 
-def audit_function(fn):
+def audit_function(fn, vocab=None):
     """Returns (is_sweep, findings) for one function definition."""
+    vocab = vocab or DEFAULT_VOCAB
     name = fn.name.lower()
-    has_hint = any(h in name for h in SWEEP_HINTS)
+    has_hint = any(h in name for h in vocab.hints)
     # A sweep trains inside a loop over a grid of values.
     trains_in_loop = any(
-        isinstance(n, ast.Call) and getattr(n.func, "id", "") == "train_model"
+        isinstance(n, ast.Call) and getattr(n.func, "id", "") in vocab.train_fns
         for loop in ast.walk(fn) if isinstance(loop, (ast.For, ast.While))
         for n in ast.walk(loop))
     if not (has_hint and trains_in_loop):
@@ -74,7 +101,7 @@ def audit_function(fn):
     for node in ast.walk(fn):
         if isinstance(node, ast.Assign) and len(node.targets) == 1 and \
                 isinstance(node.targets[0], ast.Name):
-            o = _origin(node.value, env)
+            o = _origin(node.value, env, vocab)
             if o:
                 env[node.targets[0].id] = o
 
@@ -84,25 +111,25 @@ def audit_function(fn):
             continue
         for node in ast.walk(loop):
             if not (isinstance(node, ast.Call) and
-                    getattr(node.func, "id", "") in EVAL_FNS):
+                    getattr(node.func, "id", "") in vocab.eval_fns):
                 continue
             # First positional arg after the model is the loader.
             loader_arg = node.args[1] if len(node.args) > 1 else None
             if loader_arg is None:
                 continue
-            o = _origin(loader_arg, env)
+            o = _origin(loader_arg, env, vocab)
             findings.append({"line": node.lineno, "resolved": o or "unknown",
                              "call": getattr(node.func, "id", "?")})
     return True, findings
 
 
-def audit_file(path):
+def audit_file(path, vocab=None):
     tree = ast.parse(open(path, encoding="utf-8").read())
     out = []
     for fn in ast.walk(tree):
         if not isinstance(fn, ast.FunctionDef):
             continue
-        is_sweep, findings = audit_function(fn)
+        is_sweep, findings = audit_function(fn, vocab)
         if not is_sweep:
             continue
         origins = {f["resolved"] for f in findings}
@@ -114,6 +141,9 @@ def audit_file(path):
         out.append({"function": fn.name, "line": fn.lineno,
                     "verdict": verdict, "findings": findings})
     return out
+
+
+DEFAULT_VOCAB = Vocab()
 
 
 def verdict_for_file(res):

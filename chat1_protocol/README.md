@@ -82,15 +82,26 @@ Detector 2 external validation, MIMIC-IV demo (source) -> eICU demo (target),
 
     check2 EXTERNAL  TP=3 FP=0 FN=0 TN=1
 
-The detection floor is 5%, the same as on PhysioNet A -> B. Effect sizes are
-much larger here (-19.7% vs -9.0% at 20%), most plausibly because MIMIC-IV and
-eICU are separate hospital systems while PhysioNet A and B are two sites of one
-challenge dataset — the leak pool is capped at the source size, so the
-CONTAMINATION PROPORTION is matched between the two experiments and cannot
-explain the difference. Two caveats: the MIMIC source is the entire 117-stay
-demo cohort at every seed, so the source contributes no split variance and only
-the target split varies; and detection at 5% is marginal (t=-2.86 against a
--2.132 critical value, one-sided p ~ 0.023), as it was on PhysioNet.
+The detection floor is 5%, the same as on PhysioNet A -> B.
+
+Report the two floors with BOTH t-values together — t=-2.86 here, t=-3.96 on
+PhysioNet, against a -2.132 critical value. Detection at 5% is marginal on both
+pairs, and stating them jointly makes that read as a property of the phenomenon
+(5% is an upper bound on the floor, not a constant) rather than as one weak
+result.
+
+Effect sizes are larger here (-19.7% vs -9.0% at 20% leakage). The leak pool is
+capped at the source size, so contamination PROPORTION is matched between the
+experiments and does not explain it. A possible reason is that MIMIC-IV and eICU
+are separate hospital systems while PhysioNet A and B are two sites of one
+challenge dataset. TREAT THIS AS A POST-HOC OBSERVATION AT n=2 SITE-PAIRS, worth
+a sentence, NOT as a finding: "detector sensitivity scales with how distant the
+sites are" is one hypothesis fitted to two points. Do not go looking for a third
+pair to confirm it — that is the same fitting risk as tuning detector 5's
+threshold. If a third pair arises incidentally, note whether it is consistent.
+
+Caveat: the MIMIC source is the entire 117-stay demo cohort at every seed, so
+the source contributes no split variance; only the target split varies.
 
 DETECTOR 2 SCOPE — state this wherever detector 2's results are reported, not
 only in the limitations list. Detector 2 detects DISTRIBUTIONAL OVERLAP between
