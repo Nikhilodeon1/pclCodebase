@@ -24,3 +24,75 @@ C:\Users\nikhi\Codes\pclCodebase\chat1_protocol\src\models\backbone.py:90: UserW
 C:\Users\nikhi\Codes\pclCodebase\chat1_protocol\src\models\backbone.py:90: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
   self.encoder = nn.TransformerEncoder(encoder_layer, num_layers=n_layers)
   seed 42 done (1/5)
+  seed 43 done (2/5)
+  seed 44 done (3/5)
+  seed 45 done (4/5)
+  seed 46 done (5/5)
+
+==============================================================================
+check3 — OOD-contaminated selection
+==============================================================================
+
+sweep_BUGGY.py  -> CONTAMINATED
+   ablation_lambda_sweep() line 882: CONTAMINATED
+      eval at line 898 reads OOD data
+   ablation_constraint_subset() line 927: CONTAMINATED
+      eval at line 952 reads OOD data
+
+sweep_FIXED.py  -> OK
+   ablation_lambda_sweep() line 909: OK
+      eval at line 929 reads VAL data
+      eval at line 931 reads UNKNOWN data
+   ablation_constraint_subset() line 968: OK
+      eval at line 990 reads VAL data
+      eval at line 992 reads UNKNOWN data
+
+==============================================================================
+check4 — circular constraints
+==============================================================================
+PhysioNet   Severinghaus         True      True   PaO2 derived from SaO2 via severinghaus
+PhysioNet   MAP                 False     False   
+PhysioNet   HendersonHass       False     False   
+MIMIC-IV    Severinghaus        False     False   
+MIMIC-IV    MAP                 False     False   
+MIMIC-IV    HendersonHass       False     False   
+eICU        Severinghaus        False     False   
+eICU        MAP                 False     False   
+eICU        HendersonHass       False     False   
+
+==============================================================================
+check5 — missingness/scale
+==============================================================================
+
+--- PhysioNet Site A  vs  PhysioNet Site B ---
+component    avail A   avail B    ratio     mean A     mean B   scale
+MAP           0.9233    1.0000      1.1    0.01927    0.02120    1.00
+HH            0.5986    0.0193     31.0    0.00065    0.00017    0.03
+SpO2          0.5620    0.2487      2.3    0.06957    0.00656    2.22
+  aggregate, as scored      : 0.02821 vs 0.01971   (relative gap 0.301)
+  aggregate, composition-only: 0.02144 vs 0.02334   (relative gap 0.081)
+  max availability ratio 31.0 (flag > 2.0)
+  share of gap explained by composition alone: 0.27 (flag > 0.3)
+  ==> clean
+
+--- PhysioNet Site A (half 1)  vs  PhysioNet Site A (half 2) ---
+component    avail A   avail B    ratio     mean A     mean B   scale
+MAP           0.9233    0.9434      1.0    0.01927    0.02016    1.00
+HH            0.5986    0.6361      1.1    0.00065    0.00074    0.04
+SpO2          0.5620    0.5771      1.0    0.06957    0.07285    3.61
+  aggregate, as scored      : 0.02821 vs 0.03041   (relative gap 0.072)
+  aggregate, composition-only: 0.02719 vs 0.02688   (relative gap 0.011)
+  max availability ratio 1.1 (flag > 2.0)
+  share of gap explained by composition alone: 0.16 (flag > 0.3)
+  ==> clean
+
+==============================================================================
+CONFOUND DETECTOR VALIDATION  (full re-run)
+==============================================================================
+check1  label-definition shift      TP=1  FP=0  FN=0  TN=1  prec=1.00 rec=1.00 fpr=0.00
+check2  pretraining leakage         TP=3  FP=0  FN=0  TN=1  prec=1.00 rec=1.00 fpr=0.00
+check3  OOD-contaminated selection  TP=1  FP=0  FN=0  TN=1  prec=1.00 rec=1.00 fpr=0.00
+check4  circular constraints        TP=1  FP=0  FN=0  TN=8  prec=1.00 rec=1.00 fpr=0.00
+check5  missingness/scale           TP=0  FP=0  FN=1  TN=1  prec=nan rec=0.00 fpr=0.00
+
+TOTAL                       TP=6  FP=0  FN=1  TN=12 prec=1.00 rec=0.86 fpr=0.00

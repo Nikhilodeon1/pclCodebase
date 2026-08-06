@@ -30,7 +30,7 @@ Local runs exceed the 2-minute tool timeout — use
     2      pretraining leakage           3  0  0  1   detection floor 5%, 5 seeds
     3      OOD-contaminated selection    1  0  0  1   caught the real historical bug
     4      circular constraints          1  0  0  8   precision 1.00 recall 1.00
-    5      missingness/scale             1  0  0  1   composition explains 49% of gap
+    5      missingness/scale             0  0  1  1   FALSE NEGATIVE on its own positive case
 
 Check 1's TN was 2 and its controls reported kappa 1.000. Those controls passed
 the same audit array as both arguments to Cohen's kappa, so the result was 1.0
@@ -55,5 +55,21 @@ rather than a fixed -2.0. At 5 seeds the floor is unchanged at 5% leakage
   aggregation granularity and pairing structure of what it audits.
 * Check 2's 5% floor is specific to this scale (0.3M params, 900 stays/site,
   3 epochs) — an upper bound on the floor, not a universal constant.
-* Check 5's gap is ~49% composition / ~51% genuine per-component difference.
-  Describe it as PARTIALLY artifactual.
+* Check 5's "composition explains 49% of the gap" DOES NOT HOLD. That number
+  was produced with the stay list taken as `sorted(listdir)[:1200]`, an
+  alphabetical prefix; PhysioNet filenames are patient IDs, so a prefix is a
+  systematic slice of the site, not a sample of it. Measured on seeded random
+  samples:
+
+        n=1200   legacy prefix 0.486   random 0.283 +/- 0.082  [0.152, 0.358]  flags 2/5
+        n=4000   legacy prefix 0.323   random 0.274 +/- 0.036  [0.233, 0.299]  flags 0/3
+
+  The share converges to ~0.27, and the legacy value lies outside the random
+  range at BOTH sizes — it was an artifact of the prefix AND of the small n.
+  Since 0.27 sits below the detector's own COMP_EXPLAINS_FLAG of 0.30, check 5
+  does not detect its own flagship positive case: TP=0, FN=1. The 2/5 flag rate
+  at n=1200 was estimation noise straddling the threshold, not detection.
+  The availability-ratio signal is robust throughout (34-41x against a 2.0
+  gate); it is the composition-share gate that fails.
+  Do NOT lower the threshold to recover the TP — that fits the detector to the
+  case it is supposed to detect. See rebootpcl/check5_sampling_sensitivity.py.

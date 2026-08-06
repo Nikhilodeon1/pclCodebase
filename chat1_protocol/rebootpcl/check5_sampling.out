@@ -1,0 +1,22 @@
+==============================================================================
+CHECK 5 — sampling sensitivity of the composition share
+==============================================================================
+n=1200 stays per arm | flag threshold 0.3
+
+legacy alphabetical prefix (how the 0.49 headline was produced):
+  explained=0.486  avail_ratio=36.4  flagged=True
+
+seeded random samples (5 seeds):
+  seed 0: explained=0.270  avail_ratio=31.0  flagged=False
+  seed 1: explained=0.289  avail_ratio=28.5  flagged=False
+  seed 2: explained=0.345  avail_ratio=37.9  flagged=True
+  seed 3: explained=0.152  avail_ratio=29.9  flagged=False
+  seed 4: explained=0.358  avail_ratio=62.2  flagged=True
+
+------------------------------------------------------------------------------
+legacy prefix     : 0.486
+random mean +/- sd: 0.283 +/- 0.082   range [0.152, 0.358]
+positive flagged on 2/5 random seeds
+
+verdict: the legacy number lies OUTSIDE the random-sampling range — it is a property of the alphabetical prefix, not of the site
+the positive case is SEED-UNSTABLE: it cannot be reported as a point estimate
