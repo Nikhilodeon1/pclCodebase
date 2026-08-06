@@ -79,9 +79,15 @@ def build_scenarios(ids, icd, sofa_single, sofa_window, s1, s2, audit):
     variation, which is a false positive.
     """
     return {
-        "positive (ICD vs SOFA)": (
-            icd[s1], sofa_single[s2], icd[audit], sofa_single[audit], True),
-        "negative (SOFA window vs single)": (
+        # Reference implementation is WINDOW-mode SOFA: Sepsis-3 (Singer et al.
+        # 2016) specifies a SOFA rise over a defined interval around the
+        # suspicion time, not a reading at a single instant. Single-point is the
+        # weaker operationalization, so it is a control variant here, never the
+        # comparison target -- it previously served as both, which made the
+        # results table ambiguous about what was being compared to what.
+        "positive (ICD vs SOFA window)": (
+            icd[s1], sofa_window[s2], icd[audit], sofa_window[audit], True),
+        "negative (SOFA window vs single-point)": (
             sofa_window[s1], sofa_single[s2],
             sofa_window[audit], sofa_single[audit], False),
     }

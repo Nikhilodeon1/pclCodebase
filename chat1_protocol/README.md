@@ -26,7 +26,7 @@ Local runs exceed the 2-minute tool timeout — use
 
 ## Results (all validated)
     check  confound                     TP FP FN TN   headline
-    1      label-definition shift        1  0  0  1   kappa 0.358 vs 0.771 control
+    1      label-definition shift        1  0  0  1   kappa 0.467 vs 0.771 control
     2      pretraining leakage           3  0  0  1   detection floor 5%, 5 seeds
     3      OOD-contaminated selection    1  0  0  1   caught the real historical bug
     4      circular constraints          1  0  0  8   precision 1.00 recall 1.00
@@ -37,6 +37,34 @@ the same audit array as both arguments to Cohen's kappa, so the result was 1.0
 by construction. The control is now SOFA window-mode against SOFA single-mode —
 two valid Sepsis-3 operationalizations — giving kappa 0.771 (raw agreement
 0.962) and one genuinely measured TN.
+
+Check 1's reference implementation is WINDOW-mode SOFA, per Sepsis-3 (Singer et
+al. 2016), which specifies a SOFA rise over an interval around the suspicion
+time rather than a reading at one instant. The positive case is therefore ICD vs
+SOFA-window, kappa 0.467. Single-point scoring is a CONTROL VARIANT, not the
+comparison target; it previously served as both. The kappa 0.358 figure quoted
+earlier is ICD vs SOFA-single-point and belongs only in the control breakdown,
+never as a second headline.
+
+External validation and specificity, detector 1 (see rebootpcl/external1.out,
+rebootpcl/bootstrap_kappa.out):
+
+    MIMIC-IV demo (external)  TP=1 FP=0 FN=0 TN=3
+    eICU (original database)  TP=1 FP=0 FN=0 TN=3
+
+Report the TN side as "TN=3 (1 discriminating, 2 non-discriminating)". The two
+suspicion-window WIDTH controls sit at kappa 0.93-1.00 and would pass almost
+anything; only window-vs-single-point discriminates. A genuinely hard control
+must vary the infection-suspicion criteria, not the window width.
+
+DETECTOR 1 SPECIFICITY EXPOSURE: on MIMIC the window-vs-single-point control
+gives kappa 0.651 against a 0.60 threshold. Bootstrapping over patients (5000
+resamples) gives 95% CI [0.528, 0.776] — the threshold is INSIDE the interval,
+and P(kappa <= 0.60) = 0.216. At n=117 that control is statistically
+indistinguishable from a flag: roughly one run in five, the detector would call
+a legitimate Sepsis-3 operationalization a label-definition shift. At eICU's
+operating point (500-patient audit) the same control gives [0.683, 0.862] with
+P(flag) = 0.001, so the exposure is specific to small cohorts, not general.
 
 Check 2 now re-draws the data split per seed, so the spread includes split
 variance, and flags against the df-appropriate one-sided 5% t critical value

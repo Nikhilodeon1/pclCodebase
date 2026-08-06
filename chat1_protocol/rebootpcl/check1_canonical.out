@@ -1,0 +1,28 @@
+==============================================================================
+CHECK 1 — label-definition shift across sites
+==============================================================================
+data: C:\Users\nikhi\Codes\pclCodebase\chat1_protocol\data\eICU-demo
+cohort n=1627   ICD prevalence=0.146   SOFA(single) prevalence=0.058   SOFA(window) prevalence=0.089
+
+--- positive (ICD vs SOFA window) ---
+  prevalence      site1=0.153  site2=0.097  ratio=1.57   (weak signal, flag>1.5)
+  audit subset    n=500  raw agreement=0.884  kappa=0.467   (flag<0.6)
+  ==> FLAGGED: label-definition mismatch
+
+--- negative (SOFA window vs single-point) ---
+  prevalence      site1=0.080  site2=0.068  ratio=1.18   (weak signal, flag>1.5)
+  audit subset    n=500  raw agreement=0.962  kappa=0.771   (flag<0.6)
+  ==> clean
+
+------------------------------------------------------------------------------
+positive (ICD vs SOFA window)      flagged=True   expected=True   kappa=0.467  PASS
+negative (SOFA window vs single-point) flagged=False  expected=False  kappa=0.771  PASS
+
+check1                      TP=1  FP=0  FN=0  TN=1  prec=1.00 rec=1.00 fpr=0.00
+verdict: DETECTOR VALIDATED
+
+same-criterion split noise (one criterion, disjoint halves):
+  ICD   prevalence 0.153 vs 0.139  ratio=1.10
+  SOFA  prevalence 0.049 vs 0.068  ratio=1.37   <-- within reach of the 1.5 threshold
+
+prevalence ratio, positive=1.57 vs negative=1.37: separable — kappa on a fixed audit subset is the reliable signal.
