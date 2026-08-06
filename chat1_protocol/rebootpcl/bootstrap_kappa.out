@@ -1,0 +1,61 @@
+==============================================================================
+DETECTOR 1 — bootstrap CI on the control cases
+==============================================================================
+5000 resamples, flag threshold 0.6
+
+labelling MIMIC-IV demo ...
+
+MIMIC control: SOFA win[-48,+24] vs SOFA single-point
+  n=117  kappa=0.651  95% CI [0.528, 0.776]
+  threshold 0.6 inside CI: True
+  P(kappa <= 0.6) across resamples = 0.216   <-- probability this control would FLAG
+  ==> statistically indistinguishable from a flag at this n
+  audit-subset draws (n=117, same as cohort): 95% [0.651, 0.651]  P(flag)=0.000
+
+MIMIC control: SOFA win[-48,+24] vs SOFA win[-24,+12]
+  n=117  kappa=0.931  95% CI [0.859, 0.983]
+  threshold 0.6 inside CI: False
+  P(kappa <= 0.6) across resamples = 0.000   <-- probability this control would FLAG
+  audit-subset draws (n=117, same as cohort): 95% [0.931, 0.931]  P(flag)=0.000
+
+MIMIC control: SOFA win[-48,+24] vs SOFA win[-72,+24]
+  n=117  kappa=1.000  95% CI [1.000, 1.000]
+  threshold 0.6 inside CI: False
+  P(kappa <= 0.6) across resamples = 0.000   <-- probability this control would FLAG
+  audit-subset draws (n=117, same as cohort): 95% [1.000, 1.000]  P(flag)=0.000
+
+MIMIC positive: ICD vs SOFA win[-48,+24]
+  n=117  kappa=0.150  95% CI [0.015, 0.283]
+  threshold 0.6 inside CI: False
+  P(kappa <= 0.6) across resamples = 1.000   <-- probability this control would FLAG
+  audit-subset draws (n=117, same as cohort): 95% [0.150, 0.150]  P(flag)=1.000
+
+labelling eICU ...
+
+eICU control: SOFA win[-48,+24] vs SOFA single-point
+  n=1627  kappa=0.779  95% CI [0.717, 0.835]
+  threshold 0.6 inside CI: False
+  P(kappa <= 0.6) across resamples = 0.000   <-- probability this control would FLAG
+  audit-subset draws (n=500, detector operating point): 95% [0.683, 0.862]  P(flag)=0.001
+
+eICU control: SOFA win[-48,+24] vs SOFA win[-24,+12]
+  n=1627  kappa=0.981  95% CI [0.961, 0.996]
+  threshold 0.6 inside CI: False
+  P(kappa <= 0.6) across resamples = 0.000   <-- probability this control would FLAG
+  audit-subset draws (n=500, detector operating point): 95% [0.952, 1.000]  P(flag)=0.000
+
+eICU control: SOFA win[-48,+24] vs SOFA win[-72,+24]
+  n=1627  kappa=0.996  95% CI [0.988, 1.000]
+  threshold 0.6 inside CI: False
+  P(kappa <= 0.6) across resamples = 0.000   <-- probability this control would FLAG
+  audit-subset draws (n=500, detector operating point): 95% [0.986, 1.000]  P(flag)=0.000
+
+eICU positive: ICD vs SOFA win[-48,+24]
+  n=1627  kappa=0.384  95% CI [0.317, 0.450]
+  threshold 0.6 inside CI: False
+  P(kappa <= 0.6) across resamples = 1.000   <-- probability this control would FLAG
+  audit-subset draws (n=500, detector operating point): 95% [0.283, 0.480]  P(flag)=1.000
+
+==============================================================================
+CONTROLS INDISTINGUISHABLE FROM A FLAG AT THEIR SAMPLE SIZE:
+  MIMIC SOFA win[-48,+24] vs SOFA single-point: kappa=0.651 CI [0.528, 0.776] P(flag)=0.216
