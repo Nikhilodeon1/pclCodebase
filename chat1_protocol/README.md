@@ -71,6 +71,27 @@ variance, and flags against the df-appropriate one-sided 5% t critical value
 rather than a fixed -2.0. At 5 seeds the floor is unchanged at 5% leakage
 (rel. delta -3.1%, t=-3.96 against crit -2.132).
 
+Detector 2 external validation, MIMIC-IV demo (source) -> eICU demo (target),
+5 seeds (rebootpcl/external2.out):
+
+    leakage    probe loss   paired rel. delta      t    detected
+        0%      0.025879                0.0%    0.00     False     <- FP control
+        5%      0.025243               -2.6%   -2.86     True      <- floor
+       20%      0.020641              -19.7%  -20.21     True
+      100%      0.011428              -53.2%  -13.49     True
+
+    check2 EXTERNAL  TP=3 FP=0 FN=0 TN=1
+
+The detection floor is 5%, the same as on PhysioNet A -> B. Effect sizes are
+much larger here (-19.7% vs -9.0% at 20%), most plausibly because MIMIC-IV and
+eICU are separate hospital systems while PhysioNet A and B are two sites of one
+challenge dataset — the leak pool is capped at the source size, so the
+CONTAMINATION PROPORTION is matched between the two experiments and cannot
+explain the difference. Two caveats: the MIMIC source is the entire 117-stay
+demo cohort at every seed, so the source contributes no split variance and only
+the target split varies; and detection at 5% is marginal (t=-2.86 against a
+-2.132 critical value, one-sided p ~ 0.023), as it was on PhysioNet.
+
 DETECTOR 2 SCOPE — state this wherever detector 2's results are reported, not
 only in the limitations list. Detector 2 detects DISTRIBUTIONAL OVERLAP between
 pretraining data and the target site, with missingness pattern as one channel of
