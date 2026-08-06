@@ -1,0 +1,53 @@
+<unknown>:153: SyntaxWarning: invalid escape sequence '\d'
+<unknown>:160: SyntaxWarning: invalid escape sequence '\d'
+<unknown>:206: SyntaxWarning: invalid escape sequence '\d'
+<unknown>:215: SyntaxWarning: invalid escape sequence '\d'
+==============================================================================
+DETECTOR 4 — lineage extracted from source, own loaders + externals
+==============================================================================
+
+------------------------------------------------------------------------------
+THIS PROJECT'S LOADERS (extraction replaces the hand-written table)
+------------------------------------------------------------------------------
+
+physionet2019
+  HCO3       <- base_excess_to_hco3    line 45    unreachable
+             guarded by "HCO3" not in columns, but "HCO3" IS present
+  PaO2       <- severinghaus           line 55    REACHABLE
+
+mimic4
+  no equation-based derivation of any constrained variable
+
+eicu
+  no equation-based derivation of any constrained variable
+
+------------------------------------------------------------------------------
+THIRD-PARTY (scope: MIMIC_Extract and mimic3-benchmarks only)
+------------------------------------------------------------------------------
+
+mimic3-benchmarks/mimic3benchmark/preprocessing.py
+  ground truth: Contains the per-variable cleaning functions (clean_sbp, clean_dbp, clean_fio2, clean_o2sat). These parse SBP and DBP out of a combined '120/80' string and convert FiO2 between fraction and percent. Both are PARSING and UNIT CONVERSION, not derivation of one constrained variable from another via a constraint equation, so neither can be circular.
+  no equation-based derivation of any constrained variable
+
+mimic3-benchmarks/mimic3benchmark/mimic3csv.py
+  ground truth: Cohort assembly and CSV joins; no physiological derivation.
+  no equation-based derivation of any constrained variable
+
+MIMIC_Extract/mimic_direct_extract.py
+  ground truth: The main extraction pipeline. Aggregates charted items into hourly bins and applies outlier ranges. No constrained variable is computed from another via a physiological equation.
+  no equation-based derivation of any constrained variable
+
+MIMIC_Extract/utils/simple_impute.py
+  ground truth: Imputation utilities (forward fill, masks, time-since-measurement). Imputation is not equation-based derivation.
+  no equation-based derivation of any constrained variable
+
+==============================================================================
+OUTCOME
+==============================================================================
+Own loaders: extraction reproduces the hand-written table's verdicts AND finds one derivation the table omitted entirely (HCO3 from base excess, guarded by `"HCO3" not in df.columns`). Because every PhysioNet PSV carries an HCO3 column the branch never executes, so the table's 'measured' was right -- but it was right by omission, whereas the extractor is right by analysis and would flip if the column were absent.
+
+Third-party: NO equation-based derivation of a constrained variable was found in either repository, so detector 4 has no external positive to detect and CANNOT be scored against them.
+
+Mechanism, not an excuse: detector 4's confound requires a pipeline that RECONSTRUCTS a physiological variable it does not measure, by inverting a known relation. Both repositories only ingest charted values -- parsing SBP/DBP out of a '120/80' string, converting FiO2 units, applying outlier ranges, imputing. None of that invents a variable from another via an equation. The confound is specific to pipelines that impose physiological constraints and therefore need variables the source does not record, which is what this project does and these benchmarks do not.
+
+This is a scope limit on the EXTERNAL EVIDENCE, not a demonstrated limitation of the detector, and must be reported as such. Detector 3 was run on external code and provably failed; detector 4 was run on external code and found nothing to judge. Those are different results and conflating them would overstate one and understate the other.
