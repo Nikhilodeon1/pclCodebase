@@ -16,7 +16,20 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from rebootpcl.harness import confusion, fmt_matrix
+from rebootpcl.harness import confusion, fmt_matrix, fmt_uncertainty
+
+# Measured uncertainty per real-data detector, from the runs of record. Static
+# detectors (3, 4) take None and render their reason instead. Sources:
+#   check1  rebootpcl/bootstrap_kappa.out   (thinnest control, MIMIC n=117)
+#   check2  rebootpcl/check2_5seed.out      (paired rel. delta at the 5% floor)
+#   check5  rebootpcl/check5_sampling.out   (flag rate across random samples)
+UNCERTAINTY = {
+    1: {"ci_lo": 0.528, "ci_hi": 0.776, "p_would_flag": 0.216},
+    2: {"mean": -0.031, "sd": 0.018},
+    5: {"flag_rate": 0.4, "n": 5},
+    3: None,
+    4: None,
+}
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 RESULTS = os.path.join(HERE, "results")
@@ -102,6 +115,7 @@ def main():
             print(f"check{n}  {CHECKS[n][0]:<28}NO CACHED RESULT — run with --full")
             continue
         print(f"check{n}  " + fmt_matrix(CHECKS[n][0], counts))
+        print(f"{'':8}{'':<28}{fmt_uncertainty(n, UNCERTAINTY.get(n))}")
 
     if missing:
         print(f"\nincomplete: checks {missing} have no recorded result. "
