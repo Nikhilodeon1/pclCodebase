@@ -1,7 +1,9 @@
 """The two detector-5 decision rules fixed in rebootpcl/PREREGISTRATION.md.
 
-Thresholds are frozen there and must not drift: AVAIL_RATIO_FLAG = 2.0,
-COMP_EXPLAINS_FLAG = 0.30.
+Thresholds are frozen there and must not drift: AVAIL_RATIO_FLAG = 2.0, and the
+composition gate at 0.30 (named COMP_EXPLAINS_FLAG in the pre-registration,
+COMP_GAP_RATIO_FLAG in code -- same value, renamed because "explains" wrongly
+implies a percentage).
 """
 import os
 import sys
@@ -11,17 +13,30 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))))
 
 from rebootpcl.checks.check5_missingness_scale import (
-    AVAIL_RATIO_FLAG, COMP_EXPLAINS_FLAG, VARIANTS, variant_a, variant_b)
+    AVAIL_RATIO_FLAG, COMP_EXPLAINS_FLAG, COMP_GAP_RATIO_FLAG, VARIANTS,
+    variant_a, variant_b)
 
 
-def stats(ratio, explained):
-    return {"max_avail_ratio": ratio, "explained": explained}
+def stats(ratio, gap_ratio):
+    return {"max_avail_ratio": ratio, "composition_gap_ratio": gap_ratio}
 
 
 class TestFrozenThresholds(unittest.TestCase):
     def test_thresholds_match_the_preregistration(self):
         self.assertEqual(AVAIL_RATIO_FLAG, 2.0)
-        self.assertEqual(COMP_EXPLAINS_FLAG, 0.30)
+        self.assertEqual(COMP_GAP_RATIO_FLAG, 0.30)
+
+    def test_rename_kept_the_preregistered_value(self):
+        self.assertEqual(COMP_EXPLAINS_FLAG, COMP_GAP_RATIO_FLAG)
+
+
+class TestGapRatioIsNotAShare(unittest.TestCase):
+    def test_a_ratio_above_one_is_accepted_not_clipped(self):
+        """Measured at 1.414 on PhysioNet A vs itself. If this ever raises or
+        clips, someone has re-imposed a [0,1] assumption the quantity does not
+        satisfy."""
+        self.assertTrue(variant_a(stats(5.0, 1.414)))
+        self.assertTrue(variant_b(stats(5.0, 1.414)))
 
 
 class TestVariantA(unittest.TestCase):

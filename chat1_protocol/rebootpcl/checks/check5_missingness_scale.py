@@ -15,9 +15,11 @@ Diagnostic, three parts:
       and only the active-set composition can vary. Whatever gap survives is
       produced by recording practice alone.
 
-Flag when availability is skewed AND composition alone explains a large share of
-the observed gap. Aggregation is per stay, matching how the audited score works;
-aggregating at the site level averages the effect away.
+Flag when availability is skewed AND the composition-only gap is large relative
+to the observed gap. That relative quantity is a RATIO, not a share: it is
+unbounded above 1 and must never be reported as a percentage (see
+`composition_gap_ratio` below). Aggregation is per stay, matching how the
+audited score works; aggregating at the site level averages the effect away.
 
 Validation: PhysioNet Site A vs Site B is the positive case (known artifact,
 50-fold difference in bicarbonate charting). A random split of Site A against
@@ -36,7 +38,11 @@ ROOT = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))), "data", "physionet2019")
 
 AVAIL_RATIO_FLAG = 2.0     # component availability differing by more than this
-COMP_EXPLAINS_FLAG = 0.30  # composition alone must explain >30% of the gap
+# Threshold on composition_gap_ratio. Value unchanged from the one frozen in
+# PREREGISTRATION.md, where it is named COMP_EXPLAINS_FLAG; renamed here because
+# "explains" wrongly implies a percentage. See the warning on the ratio below.
+COMP_GAP_RATIO_FLAG = 0.30
+COMP_EXPLAINS_FLAG = COMP_GAP_RATIO_FLAG   # pre-registration alias, do not reuse
 
 
 # ── decision rules ───────────────────────────────────────────────────────────
@@ -49,11 +55,11 @@ COMP_EXPLAINS_FLAG = 0.30  # composition alone must explain >30% of the gap
 def variant_a(stats):
     """Conjunction: availability skew AND composition explaining much of the gap."""
     return bool(stats["max_avail_ratio"] > AVAIL_RATIO_FLAG
-                and stats["explained"] > COMP_EXPLAINS_FLAG)
+                and stats["composition_gap_ratio"] > COMP_GAP_RATIO_FLAG)
 
 
 def variant_b(stats):
-    """Availability-only. Reports the composition share but does not gate on it."""
+    """Availability-only. Reports composition_gap_ratio but does not gate on it."""
     return bool(stats["max_avail_ratio"] > AVAIL_RATIO_FLAG)
 
 
@@ -150,7 +156,12 @@ def run_check_on_stays(name_a, A, name_b, B, verbose=True, rule=variant_a,
 
     rel = lambda t: abs(t[0] - t[1]) / max(abs(t[0]), abs(t[1]), 1e-12)
     naive_gap, comp_gap = rel(naive), rel(comp_only)
-    explained = (comp_gap / naive_gap) if naive_gap > 1e-9 else 0.0
+    # NOT a share and NOT a percentage. This is the ratio of two gaps that move
+    # independently, so it is UNBOUNDED ABOVE 1: when the composition and
+    # magnitude effects partially cancel in the naive aggregate the denominator
+    # goes small and the ratio exceeds 1 (measured at 1.414 on PhysioNet A vs
+    # itself). Never report it as "composition explains X% of the gap".
+    composition_gap_ratio = (comp_gap / naive_gap) if naive_gap > 1e-9 else 0.0
 
     max_ratio = 0.0
     for k in keys:
@@ -160,7 +171,8 @@ def run_check_on_stays(name_a, A, name_b, B, verbose=True, rule=variant_a,
         elif a != b:
             max_ratio = float("inf")
 
-    stats = {"max_avail_ratio": float(max_ratio), "explained": float(explained),
+    stats = {"max_avail_ratio": float(max_ratio),
+             "composition_gap_ratio": float(composition_gap_ratio),
              "naive_gap": float(naive_gap), "comp_gap": float(comp_gap),
              "n_stays_a": len(A), "n_stays_b": len(B)}
     flagged = rule(stats)
@@ -182,8 +194,8 @@ def run_check_on_stays(name_a, A, name_b, B, verbose=True, rule=variant_a,
         print(f"  aggregate, composition-only: {comp_only[0]:.5f} vs {comp_only[1]:.5f}"
               f"   (relative gap {comp_gap:.3f})")
         print(f"  max availability ratio {max_ratio:.1f} (flag > {AVAIL_RATIO_FLAG})")
-        print(f"  share of gap explained by composition alone: {explained:.2f} "
-              f"(flag > {COMP_EXPLAINS_FLAG})")
+        print(f"  composition/naive gap RATIO (unbounded, not a %): "
+              f"{composition_gap_ratio:.2f} (flag > {COMP_GAP_RATIO_FLAG})")
         print(f"  ==> {'FLAGGED: composition artifact' if flagged else 'clean'}")
     return flagged, stats
 

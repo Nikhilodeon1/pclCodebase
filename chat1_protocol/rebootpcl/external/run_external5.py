@@ -119,11 +119,11 @@ def main():
         for name, cs in by_name.items():
             n_flag = sum(c.flagged for c in cs)
             ratios = [c.stats["max_avail_ratio"] for c in cs]
-            shares = [c.stats["explained"] for c in cs]
+            gap_ratios = [c.stats["composition_gap_ratio"] for c in cs]
             print(f"  {name:<34} flagged {n_flag}/{len(cs)}  "
                   f"expected={cs[0].expected}  "
                   f"avail_ratio={np.mean(ratios):.1f}  "
-                  f"share={np.mean(shares):.3f}")
+                  f"gap_ratio={np.mean(gap_ratios):.3f}")
 
         flat = [c for cases in per_seed for c in cases]
         counts = confusion(flat)
@@ -134,8 +134,8 @@ def main():
                           "expected": cs[0].expected,
                           "mean_avail_ratio": float(np.mean(
                               [c.stats["max_avail_ratio"] for c in cs])),
-                          "mean_share": float(np.mean(
-                              [c.stats["explained"] for c in cs]))}
+                          "mean_gap_ratio": float(np.mean(
+                              [c.stats["composition_gap_ratio"] for c in cs]))}
                       for n, cs in by_name.items()},
         }
 
@@ -143,7 +143,7 @@ def main():
         report[vname]["E3_descriptive"] = {"flagged": bool(flagged), **st}
         print(f"\n  E3 (MIMIC vs eICU, NOT SCORED): flagged={flagged}  "
               f"avail_ratio={st['max_avail_ratio']:.1f}  "
-              f"share={st['explained']:.3f}")
+              f"gap_ratio={st['composition_gap_ratio']:.3f}")
 
     os.makedirs(RESULTS, exist_ok=True)
     with open(os.path.join(RESULTS, "external5.json"), "w", encoding="utf-8") as fh:
