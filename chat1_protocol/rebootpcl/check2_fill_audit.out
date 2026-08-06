@@ -1,0 +1,31 @@
+==============================================================================
+CHECK 2 — forward-fill proportion by leakage condition
+==============================================================================
+
+seed 42: probe fill=0.497141 (fixed within seed by construction)
+  leakage   0%  train fill=0.587234
+  leakage   5%  train fill=0.582489
+  leakage  20%  train fill=0.568458
+  leakage 100%  train fill=0.538174
+
+seed 43: probe fill=0.494695 (fixed within seed by construction)
+  leakage   0%  train fill=0.590985
+  leakage   5%  train fill=0.586003
+  leakage  20%  train fill=0.571908
+  leakage 100%  train fill=0.538607
+
+seed 44: probe fill=0.490915 (fixed within seed by construction)
+  leakage   0%  train fill=0.588039
+  leakage   5%  train fill=0.583783
+  leakage  20%  train fill=0.572108
+  leakage 100%  train fill=0.539834
+
+------------------------------------------------------------------------------
+probe fill across seeds: [0.497141, 0.494695, 0.490915]
+probe fill is constant WITHIN each seed by construction (same probe slice at every leakage level) — the paired analysis differences across levels within a seed, so it cancels exactly.
+seed 42: train fill range across leakage levels = 0.049060
+seed 43: train fill range across leakage levels = 0.052377
+seed 44: train fill range across leakage levels = 0.048205
+
+max train-fill movement across conditions: 0.052377
+Training-set fill is EXPECTED to move with leakage (adding target stays changes the mix); it is part of what leakage is, not a confound on the probe measurement.
