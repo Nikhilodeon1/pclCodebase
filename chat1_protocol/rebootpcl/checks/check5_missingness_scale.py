@@ -39,6 +39,27 @@ AVAIL_RATIO_FLAG = 2.0     # component availability differing by more than this
 COMP_EXPLAINS_FLAG = 0.30  # composition alone must explain >30% of the gap
 
 
+# ── decision rules ───────────────────────────────────────────────────────────
+# Two variants, specified in rebootpcl/PREREGISTRATION.md BEFORE any external
+# result existed. Variant A is the detector as originally written. Variant B
+# drops the composition gate, which would recover the PhysioNet A/B true
+# positive -- which is exactly why it may not be adopted on the strength of
+# that case. It is tested prospectively on external data instead.
+
+def variant_a(stats):
+    """Conjunction: availability skew AND composition explaining much of the gap."""
+    return bool(stats["max_avail_ratio"] > AVAIL_RATIO_FLAG
+                and stats["explained"] > COMP_EXPLAINS_FLAG)
+
+
+def variant_b(stats):
+    """Availability-only. Reports the composition share but does not gate on it."""
+    return bool(stats["max_avail_ratio"] > AVAIL_RATIO_FLAG)
+
+
+VARIANTS = {"A_conjunction": variant_a, "B_availability_only": variant_b}
+
+
 def components(df):
     """Per-timestep residuals for each constraint, normalized to comparable units.
     Returns {name: array} using only timesteps where that constraint is computable."""
@@ -81,10 +102,23 @@ def scan(files):
     return stays, hours
 
 
-def run_check(name_a, files_a, name_b, files_b, verbose=True):
-    A, hA = scan(files_a)
-    B, hB = scan(files_b)
-    keys = ["MAP", "HH", "SpO2"]
+def run_check(name_a, files_a, name_b, files_b, verbose=True, rule=variant_a):
+    """Path-based entry point: read PSVs, then run the shared diagnostic."""
+    A, _ = scan(files_a)
+    B, _ = scan(files_b)
+    return run_check_on_stays(name_a, A, name_b, B, verbose=verbose, rule=rule,
+                              keys=["MAP", "HH", "SpO2"])
+
+
+def run_check_on_stays(name_a, A, name_b, B, verbose=True, rule=variant_a,
+                       keys=("MAP", "HH", "SpO2")):
+    """The diagnostic itself, over per-stay {component: mean residual} dicts.
+
+    Split out from run_check so external datasets run the SAME code rather than
+    a reimplementation of it -- a reimplementation would validate the rewrite,
+    not the detector.
+    """
+    keys = list(keys)
 
     def avail(stays, k):
         return sum(1 for s in stays if k in s) / max(len(stays), 1)
@@ -126,14 +160,17 @@ def run_check(name_a, files_a, name_b, files_b, verbose=True):
         elif a != b:
             max_ratio = float("inf")
 
-    flagged = (max_ratio > AVAIL_RATIO_FLAG) and (explained > COMP_EXPLAINS_FLAG)
+    stats = {"max_avail_ratio": float(max_ratio), "explained": float(explained),
+             "naive_gap": float(naive_gap), "comp_gap": float(comp_gap),
+             "n_stays_a": len(A), "n_stays_b": len(B)}
+    flagged = rule(stats)
 
     if verbose:
         print(f"")
         print(f"--- {name_a}  vs  {name_b} ---")
         print(f"{'component':<10}{'avail A':>10}{'avail B':>10}{'ratio':>9}"
               f"{'mean A':>11}{'mean B':>11}{'scale':>8}")
-        base = pooled["MAP"]
+        base = pooled[keys[0]]      # scale column is relative to the first term
         for k in keys:
             a, b = avail(A, k), avail(B, k)
             r = max(a, b) / min(a, b) if min(a, b) > 0 else float("inf")
@@ -148,11 +185,7 @@ def run_check(name_a, files_a, name_b, files_b, verbose=True):
         print(f"  share of gap explained by composition alone: {explained:.2f} "
               f"(flag > {COMP_EXPLAINS_FLAG})")
         print(f"  ==> {'FLAGGED: composition artifact' if flagged else 'clean'}")
-    return flagged, {"max_avail_ratio": float(max_ratio),
-                     "explained": float(explained),
-                     "naive_gap": float(naive_gap),
-                     "comp_gap": float(comp_gap),
-                     "n_stays_a": len(A), "n_stays_b": len(B)}
+    return flagged, stats
 
 
 def sample_files(seed, n, legacy=False):
