@@ -71,6 +71,19 @@ variance, and flags against the df-appropriate one-sided 5% t critical value
 rather than a fixed -2.0. At 5 seeds the floor is unchanged at 5% leakage
 (rel. delta -3.1%, t=-3.96 against crit -2.132).
 
+DETECTOR 2 SCOPE — state this wherever detector 2's results are reported, not
+only in the limitations list. Detector 2 detects DISTRIBUTIONAL OVERLAP between
+pretraining data and the target site, with missingness pattern as one channel of
+it. It does NOT isolate leakage of physiological values. Measured across 3 seeds
+(rebootpcl/check2_fill_audit.out), training-set fill proportion moves
+monotonically with the injected leakage, 0.588 at 0% to 0.539 at 100%, because
+Site B records more sparsely than Site A. Adding target stays therefore changes
+the value distribution and the missingness pattern together, and this design
+cannot attribute detection to either alone. The probe slice is identical across
+leakage levels within a seed, so its own fill proportion cancels exactly in the
+paired difference — the limitation is about what a detection MEANS, not about
+the validity of the measurement.
+
 ## Notes that matter
 * `data/` is a Windows directory JUNCTION to `../data`. Do NOT `rm -rf` it —
   that can delete the real 455MB dataset. Remove with `cmd //c rmdir` instead.
