@@ -12,6 +12,7 @@ using the template's own style IDs (Heading1, BodyText, tablehead, references, .
 import os
 import re
 import shutil
+import struct
 import subprocess
 import zipfile
 
@@ -73,6 +74,44 @@ def picture(rid, w_emu, h_emu, name="Figure"):
         '</pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>')
 
 
+def png_size(path):
+    """(width, height) in pixels, straight out of the IHDR chunk."""
+    with open(path, "rb") as f:
+        head = f.read(24)
+    return struct.unpack(">II", head[16:24])
+
+
+COL_EMU = 2926080  # 3.2in: fits the IEEE column with a little side margin
+
+
+def figure(rid, name, scale=1.0):
+    """Column-width image, height derived from the file's own aspect ratio.
+    Hand-set heights drift out of sync whenever a figure is redrawn, which
+    renders it squashed; deriving the height removes that failure mode.
+    `scale` narrows a schematic that does not need the full column."""
+    w, h = png_size(os.path.join(HERE, FIGURES[rid]))
+    wid = int(round(COL_EMU * scale))
+    return picture(rid, wid, int(round(wid * h / w)), name)
+
+
+def eq(parts):
+    """Centered display equation, built from (text, italic, subscript) runs.
+
+    NOTE: the template's `equation` style maps its runs to the Symbol font, so
+    "L = L_mask" comes out as "Λ = Λ_μασκ". The equation therefore uses a plain
+    centered paragraph with explicitly-fonted runs instead of that style.
+    """
+    body = ""
+    for text, italic, sub in parts:
+        rpr = ('<w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/>'
+               + ("<w:i/>" if italic else "")
+               + ('<w:vertAlign w:val="subscript"/>' if sub else ""))
+        body += (f'<w:r><w:rPr>{rpr}</w:rPr>'
+                 f'<w:t xml:space="preserve">{esc(text)}</w:t></w:r>')
+    return ('<w:p><w:pPr><w:spacing w:before="120" w:after="120" w:line="240" '
+            'w:lineRule="auto"/><w:jc w:val="center"/></w:pPr>' + body + '</w:p>')
+
+
 def table(rows, widths, header_style="tablecolhead"):
     """Simple bordered table; first row is the header."""
     borders = ("<w:tblBorders>" + "".join(
@@ -101,102 +140,140 @@ def table(rows, widths, header_style="tablecolhead"):
 
 # ════════════════════════════════════════════════════════════════════════════
 # CONTENT
+#
+# Structure follows the reviewer's outline: the paper answers one question --
+# how reliable is source-domain validation under real hospital shift -- and PCL
+# is the experimental vehicle used to answer it, not a claimed contribution.
 # ════════════════════════════════════════════════════════════════════════════
 TITLE = "When Validation Lies: Diagnosing and Fixing Model Selection Failures Under Real Hospital Shift"
 
 ABSTRACT = (
-    "Clinical machine learning models degrade when deployed across hospitals, and a "
-    "large literature proposes methods to close that gap. We set out to build one: "
-    "Physiology-Constrained Learning (PCL), which augments masked-prediction pretraining "
-    "of a clinical time-series transformer with differentiable penalties enforcing known "
-    "physiological relationships. PCL initially appeared to improve zero-shot cross-hospital "
-    "sepsis prediction substantially. Systematic re-evaluation showed that the improvement "
-    "did not survive proper controls: it was attributable to a label-definition confound, a "
-    "pretraining leak that broke the zero-shot premise, hyperparameter selection performed on "
-    "out-of-distribution data, and run-to-run variance exceeding the reported effect. "
-    "Correcting all four eliminated the gain. That investigation surfaced a separate and more "
-    "broadly relevant problem. Selecting hyperparameters on held-out source-hospital data, the "
-    "standard practice, is unreliable under real hospital shift: across a constraint-weight "
-    "sweep, source validation AUROC varied by roughly one point while target AUROC varied by "
-    "eleven, and source-validation selection performed no better than choosing at random. "
-    "Scoring candidate configurations with masked-reconstruction error on unlabeled target data "
-    "reduced mean selection regret from 0.052 to 0.012. Results span three real hospital systems "
-    "and roughly 230,000 ICU stays across three seeds."
+    "Deploying a clinical machine learning model at a new hospital requires choosing, before any "
+    "outcome at that hospital is observable, which of the configurations one has trained will "
+    "transfer best. Standard practice makes that choice on held-out source-hospital data. We ask how "
+    "reliable that practice is under real hospital distribution shift. Our experimental vehicle is "
+    "Physiology-Constrained Learning (PCL), which augments masked-prediction pretraining of a clinical "
+    "time-series transformer with differentiable penalties enforcing known physiological relationships; "
+    "its constraint weight is a hyperparameter whose value strongly affects cross-hospital performance. "
+    "PCL initially appeared to improve zero-shot cross-hospital sepsis prediction substantially. "
+    "Systematic re-evaluation showed that the improvement did not survive proper controls: it was "
+    "attributable to four separable evaluation confounds, and correcting them eliminated the gain and "
+    "exposed the selection problem directly. Across the sweep, source validation AUROC varied by "
+    "roughly one point "
+    "while target AUROC varied by eleven, and source-validation selection performed no better than "
+    "choosing at random. Scoring candidate configurations with masked-reconstruction error on unlabeled "
+    "target data reduced mean selection regret from 0.052 to 0.012. Results span three real hospital "
+    "systems and roughly 230,000 ICU stays across three seeds."
 )
 
 KEYWORDS = ("domain generalization, clinical machine learning, model selection, "
             "distribution shift, hyperparameter tuning, ICU prediction")
 
-FIGURES = {"rIdFig1": "fig1_validation_gap.png",
-           "rIdFig2": "fig2_design.png",
-           "rIdFig3": "fig3_regret.png"}
+FIGURES = {"rIdFig0": "fig0_overview.png",
+           "rIdFig1": "fig1_validation_gap.png",
+           }
 
 BODY = []
 A = BODY.append
 
-# ── I. Introduction ──────────────────────────────────────────────────────────
+# ── I. Introduction (Background merged in) ───────────────────────────────────
 A(para("Introduction", "Heading1"))
 A(para(
     "Machine learning models trained at one hospital routinely lose accuracy when deployed at "
     "another. The causes are well documented: measurement devices differ, laboratory analyzers are "
     "calibrated independently, and local ordering habits induce site-specific correlations between "
     "how data is recorded and what is being predicted. A model that latches onto these artifacts "
-    "rather than underlying physiology will not transfer [12], [13], [23]-[25]."))
+    "rather than underlying physiology will not transfer [1]-[3]."))
 A(para(
-    "Most proposed remedies either require labeled data from the target hospital, which is "
+    "Reliable deployment therefore demands more than a training procedure that is robust in "
+    "principle. It demands choosing, among the configurations actually trained, the one that will "
+    "perform best at a hospital whose data has never been seen. That choice must be made before a "
+    "single outcome at the target hospital is observable, and whatever robustness a method offers is "
+    "realized only if the selection step can find it. Standard practice makes the choice on a held-out "
+    "split of the training distribution, justified by exchangeability: validation data is drawn from "
+    "the same distribution as the deployment data, so validation performance estimates deployment "
+    "performance. Cross-hospital deployment violates that assumption by construction. Whether source "
+    "validation still ranks configurations correctly under such shift is an empirical question, and "
+    "one that is rarely checked."))
+A(para(
+    "This paper asks that question directly: how reliable is conventional source-domain validation "
+    "for model selection under real hospital distribution shift, and is there a practical alternative "
+    "that requires no target labels?"))
+A(para(
+    "We answer it through a concrete experimental framework. Physiology-Constrained Learning (PCL) "
+    "augments masked-prediction pretraining of a clinical time-series transformer with differentiable "
+    "penalties for violating known physiological relationships, on the intuition that physiology is "
+    "shared across hospitals even when measurement practice is not. PCL supplies exactly what the "
+    "selection question needs: a single hyperparameter, the constraint weight, that spans a wide range "
+    "of cross-hospital behavior, and a family of trained configurations that any candidate criterion "
+    "can be asked to rank. PCL initially appeared to improve zero-shot cross-hospital sepsis "
+    "prediction substantially; a rigorous re-evaluation identified four separable evaluation confounds "
+    "that together accounted for the entire apparent gain. That re-evaluation is what exposed the "
+    "selection problem, because the third confound, choosing the constraint weight on "
+    "out-of-distribution data, is a confound only if the legitimate alternative works."))
+A(para(
+    "It does not. Our contributions answer the central question in order. First, we show that "
+    "conventional source-domain validation is unreliable for model selection under hospital "
+    "distribution shift: across a constraint-weight sweep on three real hospital systems, source "
+    "validation AUROC varied by roughly one point while target AUROC varied by eleven, and the "
+    "selected configuration was among the weakest at every external site. Second, we use the PCL study "
+    "to demonstrate concretely how a seemingly promising cross-hospital improvement disappears once "
+    "four common evaluation confounds are corrected, each easy to reproduce accidentally. Third, we "
+    "show empirically that reconstruction error on unlabeled target data is an effective selection "
+    "criterion, cutting mean selection regret from 0.052 to 0.012. The third result is not a new "
+    "algorithm; it confirms, in a high-stakes clinical setting and at realistic scale, a phenomenon "
+    "the domain-adaptation literature has benchmarked in other contexts."))
+A(para(
+    "That literature has raised this concern before. Benchmark studies have shown that measured "
+    "differences between generalization algorithms depend heavily on the model selection criterion "
+    "[4], that unsupervised scorers on unlabeled target data are a viable alternative [5], [6], and "
+    "that reported adaptation gains often shrink under standardized protocols [7]. Classical theory "
+    "ties target error to a source-target divergence that source validation cannot observe [8]. Most "
+    "proposed remedies for shift itself either require labeled data from the target hospital, which is "
     "precisely what is unavailable before deployment, or rely on having many training environments, "
-    "which clinical settings rarely provide [7]-[10], [22]. This motivates methods that require neither. We "
-    "pursued one such method, encoding known physiological relationships as pretraining constraints, "
-    "on the premise that physiology is shared across hospitals even when measurement is not."))
+    "which clinical settings rarely provide [9], [10]. Our contribution is not the idea but the "
+    "evidence: real multi-hospital electronic health record data at full scale, where the shift is "
+    "genuine rather than simulated."))
+A(figure("rIdFig0", "Overview", 0.80))
 A(para(
-    "This paper reports what happened when that method was tested rigorously, and what the testing "
-    "revealed. Our contributions are: (1) a case study in which an apparently strong cross-hospital "
-    "result dissolved under four separable controls, each of which is easy to reproduce accidentally; "
-    "(2) a quantified demonstration, at full scale on three real hospital systems, that "
-    "source-hospital validation is an unreliable criterion for selecting hyperparameters intended for "
-    "deployment elsewhere; and (3) evidence that a cheap, label-free alternative, scoring candidate "
-    "configurations by reconstruction error on unlabeled target data, recovers most of the lost "
-    "performance. The third result is not a new algorithm; it confirms, in a high-stakes clinical "
-    "setting and at realistic scale, a phenomenon that the domain-adaptation literature has "
-    "benchmarked in other contexts."))
-
-# ── II. Background ───────────────────────────────────────────────────────────
-A(para("Background", "Heading1"))
-A(para(
-    "Hyperparameter selection normally relies on a held-out split of the training distribution. This "
-    "is justified by exchangeability: validation data is drawn from the same distribution as the "
-    "deployment data, so validation performance estimates deployment performance. Cross-hospital "
-    "deployment violates that assumption by construction, since the deployment distribution is a "
-    "different hospital. Whether source validation still ranks configurations correctly under such "
-    "shift is an empirical question, and one that is rarely checked."))
-A(para(
-    "The domain-generalization literature has raised this concern before. Benchmark studies have shown that measured differences between "
-    "generalization algorithms depend heavily on the model selection criterion [6], that "
-    "unsupervised scorers on unlabeled target data are a viable alternative [11], [19], and that "
-    "reported adaptation gains often shrink under standardized protocols [20], [21]. Classical "
-    "theory ties target error to a source-target divergence that source validation cannot "
-    "observe [18]. "
-    "Our contribution here is not the idea but the evidence: we test it on real "
-    "multi-hospital electronic health record data at full scale, where the shift is genuine rather "
-    "than simulated."))
-
-# ── III. PCL case study ──────────────────────────────────────────────────────
-A(para("Motivating Case Study: Physiology-Constrained Learning", "Heading1"))
-A(para("Method and Setup", "Heading2"))
-A(para(
-    "PCL pretrains a six-layer transformer [15] (d = 256, 8 heads, about 3.2M parameters) on 48-hour, "
-    "hourly-binned ICU windows using masked-value prediction [16], adding a differentiable penalty for "
-    "violating three physiological relationships among the model's reconstructed outputs: the mean "
-    "arterial pressure identity, the Henderson-Hasselbalch equation, and the Severinghaus oxygen "
-    "dissociation relation. The penalty weight is denoted by the constraint weight. Constraints are "
-    "applied only at timesteps where all required variables were observed and at least one was "
-    "masked, so the model must impute from cross-variable structure rather than copy its input."))
-A(picture("rIdFig2", 2926080, 1322185, "Figure 2"))
-A(para(
-    "Study design. Models are trained and validated on PhysioNet Site A only. Site B shares the "
-    "collection protocol; MIMIC-IV and eICU-CRD are independent EHR systems. No target-site data, "
-    "labeled or unlabeled, is used during training, and no selection decision uses target labels.",
+    "Structure of the study. PCL is the experimental vehicle, not the claim: its constraint weight "
+    "provides the hyperparameter whose selection is at issue, and correcting the four evaluation "
+    "confounds is what exposes the selection failure that the rest of the paper measures and fixes.",
     "figurecaption", keep=True))
+A(para(
+    "Fig. 1 summarizes that structure. Section II describes the PCL framework and its re-evaluation. Section III diagnoses source-domain "
+    "validation and explains why it fails here. Section IV evaluates label-free alternatives that use "
+    "unlabeled target data. Section V discusses scope, practical adoption, and future work."))
+
+# ── II. PCL framework and rigorous evaluation ────────────────────────────────
+A(para("PCL Framework and Rigorous Evaluation", "Heading1"))
+A(para("Method and Objective", "Heading2"))
+A(para(
+    "PCL pretrains a six-layer transformer [11] (d = 256, 8 heads, about 3.2M parameters) on 48-hour, "
+    "hourly-binned ICU windows using masked-value prediction [12]. The intuition is that the "
+    "relationships physiology imposes among simultaneously measured variables hold at every hospital, "
+    "even where devices, analyzers, and ordering habits do not, so a representation forced to respect "
+    "them should depend less on site-specific measurement artifacts. The training objective adds a "
+    "differentiable penalty for violating those relationships among the model's reconstructed outputs:"))
+A(eq([("L", True, False), (" = ", False, False),
+      ("L", True, False), ("mask", False, True),
+      (" + ", False, False), ("\u03bb", True, False), (" ", False, False),
+      ("L", True, False), ("phys", False, True)]))
+A(para(
+    "The first term is the masked-value reconstruction loss. The second is the mean penalty across "
+    "three physiological relations: an absolute residual on the mean arterial pressure identity, and "
+    "squared residuals on the Henderson-Hasselbalch equation and the Severinghaus oxygen dissociation "
+    "relation. The penalty is applied only at timesteps where all required variables were observed and "
+    "at least one was masked, so the model must impute from cross-variable structure rather than copy "
+    "its input. The constraint weight \u03bb trades the two terms off, and it is the hyperparameter whose "
+    "selection this paper studies: it is a natural choice for that role because, as Section III shows, "
+    "it moves cross-hospital performance far more than it moves source validation performance."))
+
+A(para("Study Design and Cohorts", "Heading2"))
+A(para(
+    "The separation between sites is strict: every training and selection decision is made on "
+    "PhysioNet Site A, no target-site data is used during training whether labeled or unlabeled, and "
+    "target labels are touched only when reporting final numbers."))
 A(para(
     "Table I summarizes the cohorts. Sepsis prevalence differs substantially across systems, which "
     "is itself part of the shift being studied."))
@@ -209,8 +286,8 @@ A(table([
     ["eICU-CRD", "130,446", "8.8%", "target"],
 ], [1500, 1000, 1100, 1300]))
 A(para(
-    "Models are trained on PhysioNet Challenge 2019 Site A [3] and evaluated zero-shot on three held-out "
-    "cohorts: PhysioNet Site B (same collection protocol), MIMIC-IV [4] (74,607 stays), and eICU-CRD [5] "
+    "Models are trained on PhysioNet Challenge 2019 Site A [13] and evaluated zero-shot on three held-out "
+    "cohorts: PhysioNet Site B (same collection protocol), MIMIC-IV [14] (74,607 stays), and eICU-CRD [15] "
     "(130,446 stays across many hospitals). After filtering, the pooled cohort is 230,213 ICU stays. "
     "The task is sepsis onset prediction. Seventeen variables are used, comprising vital signs, "
     "arterial blood gases, and routine chemistry and hematology."))
@@ -224,42 +301,21 @@ A(para(
     "therefore not tautologies: independent sensors and analyzers genuinely disagree, and they "
     "disagree more in the external systems than in the training distribution."))
 A(para(
-    "Constraint availability is highly uneven, however. The blood-pressure identity is computable at "
-    "70 to 80% of stay-hours, but the acid-base constraints are computable at only 0.6 to 1.8% of "
-    "hours because arterial blood-gas panels are drawn infrequently. Measured on the loss actually "
-    "optimized, the Henderson-Hasselbalch term contributes roughly one twenty-seventh the magnitude "
-    "of the blood-pressure term, so the objective is dominated by a single constraint even though "
-    "three are nominally active."))
-A(para(
-    "That unevenness has a consequence we did not anticipate, and it matters for any use of the "
-    "violation score as a site-level signal. Because the score averages whichever constraints happen "
-    "to be computable, and because the constraints occupy very different magnitude ranges, its "
-    "per-site mean partly tracks laboratory ordering practice rather than physiological consistency. "
-    "PhysioNet Site A charts bicarbonate in 8.1% of stay-hours against 0.16% at Site B, a fifty-fold "
-    "difference, which makes the acid-base constraints computable 14.7 times more often at Site A and "
-    "the oxygen-dissociation constraint 3.2 times more often. Table II shows the effect. Measured on "
-    "raw data with no model involved, the blood-pressure residual is essentially identical at the two "
-    "sites, while the Severinghaus residual is four times larger in scale and differs by a factor of "
-    "8.6 between them. Averaging under each site’s own constraint mix reproduces the observed "
-    "cross-site gap in violation without any model: 0.032 at Site A against 0.010 at Site B."))
-A(para("Per-constraint residuals on raw data (PhysioNet Sites A and B, first 4,000 stays each). "
-       "MAP is comparably available at both sites and shows no site difference; the site gap in mean "
-       "violation is produced by the sparser, larger-magnitude Severinghaus term.", "tablehead"))
-A(table([
-    ["Constraint", "Site A", "Site B", "Scale vs MAP"],
-    ["MAP identity", "0.0188", "0.0206", "1.00"],
-    ["Henderson-Hasselbalch", "0.0008", "0.0004", "0.04"],
-    ["Severinghaus", "0.0773", "0.0090", "4.12"],
-], [1900, 900, 900, 1050]))
-A(para(
-    "We report this because it bounds what the violation score can be used for. It remains a valid "
-    "training signal, since the penalty is applied per timestep where the constraint is computable and "
-    "is never compared across sites. But its per-site average is confounded with measurement "
-    "availability, so it should not be interpreted as a measure of how physiologically consistent a "
-    "hospital’s data is, nor used as a site-level distribution-shift statistic without first "
-    "standardizing each constraint separately. A further caveat applies to Severinghaus on PhysioNet "
-    "specifically: the dataset does not record arterial oxygen partial pressure, so it is "
-    "reconstructed by inverting the same relation the constraint enforces, as noted below."))
+    "Constraint availability is highly uneven, however, and this bounds what the violation score can "
+    "be used for. The blood-pressure identity is computable at 70 to 80% of stay-hours, but the "
+    "acid-base constraints at only 0.6 to 1.8%, because arterial blood-gas panels are drawn "
+    "infrequently; on the loss actually optimized, the Henderson-Hasselbalch term contributes roughly "
+    "one twenty-seventh the magnitude of the blood-pressure term. Because the score averages whichever "
+    "constraints happen to be computable, and the constraints occupy very different magnitude ranges, "
+    "its per-site mean partly tracks laboratory ordering practice rather than physiological "
+    "consistency. Site A charts bicarbonate in 8.1% of stay-hours against 0.16% at Site B, a "
+    "fifty-fold difference. On raw data with no model involved the blood-pressure residual is "
+    "essentially identical at the two sites (0.0188 versus 0.0206), while the sparser Severinghaus "
+    "residual is four times larger in scale and differs by a factor of 8.6, which reproduces the "
+    "observed cross-site gap in violation with no model at all. The penalty remains a valid training "
+    "signal, applied per timestep and never compared across sites, but its per-site average must not "
+    "be read as a site-level shift statistic without standardizing each constraint separately."))
+
 A(para("Four Confounds", "Heading2"))
 A(para(
     "Under our initial evaluation PCL outperformed empirical risk minimization (ERM) at every "
@@ -270,7 +326,8 @@ A(para(
     "sepsis labels derived from administrative ICD codes. Cross-site differences therefore conflated "
     "domain shift with a change in the definition of the outcome. We re-derived Sepsis-3 directly on "
     "MIMIC-IV and eICU using SOFA scoring anchored to a suspected-infection window, following the "
-    "standard reference implementation [1], [2], yielding positive rates of 30.9% and 8.8% respectively; clinical and claims-based sepsis definitions are known to diverge substantially [26].",
+    "standard reference implementation [16], [17], yielding positive rates of 30.9% and 8.8% "
+    "respectively; clinical and claims-based sepsis definitions are known to diverge substantially [18].",
     "bulletlist"))
 A(para(
     "Pretraining leak. PCL pretrained on unlabeled data from all sites while ERM pretrained on the "
@@ -289,10 +346,10 @@ A(para(
 
 A(para("Result After Correction", "Heading2"))
 A(para(
-    "With all four corrected, PCL no longer improved cross-hospital transfer. Table III reports the "
+    "With all four corrected, PCL no longer improved cross-hospital transfer. Table II reports the "
     "corrected comparison over three seeds. PCL is below ERM at every site, and a gradient-boosted "
-    "tree [14] trained on simple per-stay summary statistics matches or exceeds both neural models, which "
-    "further questions the architecture. A group-distributionally-robust baseline, once corrected for "
+    "tree [19] trained on simple per-stay summary statistics matches or exceeds both neural models, which "
+    "further questions the architecture. A group-distributionally-robust baseline [10], once corrected for "
     "class imbalance, is the strongest neural configuration tested."))
 
 A(para("Corrected cross-hospital sepsis AUROC (mean over 3 seeds). "
@@ -306,51 +363,48 @@ A(table([
     ["XGBoost", "\u2014", "0.754", "0.654", "0.660"],
 ], [1150, 800, 830, 1090, 830]))
 A(para(
-    "Expanding the input from the original nine physiological channels to seventeen, adding "
-    "temperature, respiratory rate, and routine chemistry and hematology, improved external transfer "
-    "for both methods and was retained throughout. Two unit-harmonization defects surfaced while "
-    "doing so and are worth recording, since either would silently damage transfer: MIMIC-IV charts "
-    "temperature predominantly in Fahrenheit, and eICU-CRD records it in nurse charting rather than "
-    "the periodic vitals table. Left uncorrected, temperature was observed for 82% of source hours "
-    "but only 6% of target hours, an availability gap that penalizes any model relying on it."))
+    "Expanding the input from nine physiological channels to seventeen improved external transfer for "
+    "both methods and was retained throughout. Two unit-harmonization defects surfaced while doing so "
+    "and would each have silently damaged transfer: MIMIC-IV charts temperature in Fahrenheit, and "
+    "eICU-CRD records it in nurse charting rather than the periodic vitals table, leaving temperature "
+    "observed for 82% of source hours but only 6% of target hours."))
 A(para(
-    "Two further observations support the negative result. Invariant risk minimization with 30 "
+    "Two further observations support the negative result. Invariant risk minimization [9] with 30 "
     "hospital environments drawn from eICU performed no better than ERM (0.788 versus 0.792), "
     "indicating the failure is not confined to the low-environment regime. Separately, run-to-run "
     "variability across seeds reached 4 to 7 AUROC points, which exceeds most of the differences "
     "originally reported as method effects."))
-
-# ── IV. Validation problem ───────────────────────────────────────────────────
-A(para("The Validation Problem, Quantified", "Heading1"))
 A(para(
-    "Correcting the third confound raised a question that outlives PCL itself. If the constraint "
+    "The negative result is what makes the rest of the paper possible. With no configuration "
+    "meaningfully better than the others, the constraint weight becomes a clean test bed: target "
+    "performance still differs sharply across the sweep, so whether a label-free criterion can tell "
+    "the configurations apart is answerable without a method effect confounding the answer."))
+
+# ── III. Diagnosing source-domain validation ─────────────────────────────────
+A(para("Diagnosing Source-Domain Validation", "Heading1"))
+A(para("The Validation-Target Disconnect", "Heading2"))
+A(para(
+    "Correcting the third confound raised the question that outlives PCL itself. If the constraint "
     "weight must be chosen without touching target data, does source-hospital validation choose it "
     "well? We swept the constraint weight over six values, recorded source validation AUROC and true "
     "AUROC at each held-out site, and compared the configuration that validation would select against "
     "the best configuration available."))
 A(para(
-    "Table IV shows the disconnect. Source validation AUROC spans about one point across the entire "
-    "sweep, while target AUROC spans roughly eleven. Validation is nearly flat precisely where the "
-    "target performance differences are largest, so it carries little information about which "
-    "configuration will deploy well. In this seed, source validation selects the weakest "
-    "configuration for every external site."))
-A(para("Source validation AUROC versus true target AUROC across the constraint-weight "
-       "sweep (single seed). Validation spans ~0.01; target spans ~0.11.", "tablehead"))
-A(table([
-    ["Weight", "Source", "Site B", "MIMIC-IV", "eICU"],
-    ["0.0 (ERM)", "0.835", "0.692", "0.601", "0.548"],
-    ["0.1", "0.831", "0.737", "0.691", "0.637"],
-    ["0.5", "0.825", "0.750", "0.695", "0.662"],
-    ["1.0", "0.827", "0.675", "0.645", "0.585"],
-    ["2.0", "0.820", "0.653", "0.633", "0.562"],
-    ["5.0", "0.828", "0.597", "0.608", "0.575"],
-], [1000, 850, 880, 1090, 880]))
-A(picture("rIdFig1", 2926080, 2354788, "Figure 1"))
+    "Fig. 2 shows the disconnect. Across the whole sweep, source validation AUROC spans about one "
+    "point (0.820 to 0.835) while target AUROC spans roughly eleven (0.548 to 0.750). Validation is "
+    "nearly flat precisely where the target differences are largest, so it carries little information "
+    "about which configuration will deploy well. In this seed source validation selects the "
+    "unconstrained model, which is the weakest configuration at every external site, while the best "
+    "available weight (0.5) is one validation would rank fifth of six."))
+A(figure("rIdFig1", "ValidationGap"))
 A(para(
-    "Source-hospital validation AUROC versus true zero-shot target AUROC, one point per "
-    "(constraint weight, target site). Points scatter almost vertically: validation varies by 0.015 "
-    "while target performance varies by 0.20, and the trend is mildly downward rather than upward. "
-    "The configuration source validation selects is among the weakest at every external site.",
+    "The validation-target disconnect. Each point is one (constraint weight, target site) pair: "
+    "horizontal position is that configuration’s source-hospital validation AUROC, vertical position "
+    "its true zero-shot AUROC at that site. The cloud is almost vertical — validation varies by only "
+    "0.015 across the sweep while target performance varies by 0.20 — and the weak trend that exists "
+    "runs downward rather than upward. The annotated point is the configuration source validation "
+    "selects, among the worst-performing at every external hospital; the best available configuration "
+    "is marked for comparison.",
     "figurecaption", keep=True))
 A(para(
     "We stress that the best-performing weight is not stable across seeds: in a second seed the "
@@ -358,8 +412,27 @@ A(para(
     "finding. It means the practical question is not which weight is universally best, but whether "
     "any available selection criterion can identify a good one for a given deployment."))
 
-# ── V. Fix ───────────────────────────────────────────────────────────────────
-A(para("Unsupervised Target-Side Selection", "Heading1"))
+A(para("Why Source Validation Fails Under Shift", "Heading2"))
+A(para(
+    "The mechanism is worth stating explicitly, because it predicts where else the failure should "
+    "appear. Source validation data is drawn from the same hospital the model was fit to, so it "
+    "contains the same measurement artifacts, in the same proportions, with the same predictive value. "
+    "The configurations in our sweep differ mainly in how heavily they lean on those artifacts rather "
+    "than on cross-variable physiological structure. A configuration that leans on them heavily is not "
+    "penalized on source validation, because there the artifacts are still present and still "
+    "predictive; it is penalized only at a hospital where the artifact is charted differently or not "
+    "at all. Source validation is therefore blind along precisely the axis that separates the "
+    "candidates, which is why it is nearly flat while target performance is not."))
+A(para(
+    "This also explains why the failure is not a variance problem that more validation data would "
+    "solve. The source validation estimate is not noisy; it is measuring a quantity, in-distribution "
+    "accuracy, that is close to constant across the sweep. Enlarging the validation split sharpens an "
+    "estimate of the wrong quantity. What is needed is a criterion computed where the shift actually "
+    "is, which means a criterion evaluated on target-hospital data."))
+
+# ── IV. Unsupervised model selection ─────────────────────────────────────────
+A(para("Empirical Study of Unsupervised Model Selection", "Heading1"))
+A(para("Criteria and Metrics", "Heading2"))
 A(para(
     "We therefore evaluated selection criteria that use unlabeled target data only. For each trained "
     "configuration and each target site, we computed four label-free scores in a single "
@@ -368,39 +441,28 @@ A(para(
     "lower-is-better and is used to rank configurations."))
 A(para(
     "We report two metrics. Spearman rank correlation measures whether a score orders configurations "
-    "the way true target AUROC does; a more negative value is better. Selection regret is the true "
-    "target AUROC of the configuration a criterion selects minus that of the best available "
-    "configuration, so zero is optimal. Both are computed over three seeds and three target sites, "
-    "and are reported in Table V."))
+    "the way true target AUROC does; a more negative value is better. Selection regret is how far the "
+    "configuration a criterion selects falls below the best available configuration in true target "
+    "AUROC, so zero is optimal. Both are computed over three seeds and three target sites, "
+    "and are reported in Table III."))
 A(para("Label-free selection criteria. Rank correlation with true target AUROC "
-       "(more negative is better) and mean selection regret (closer to zero is better), "
+       "(more negative is better) and mean selection regret in AUROC below the best available "
+       "configuration (closer to zero is better), "
        "over 3 seeds and 3 sites.", "tablehead"))
 A(table([
     ["Selection criterion", "Rank corr.", "Mean regret"],
-    ["Reconstruction error", "-0.459", "-0.012"],
-    ["Constraint violation", "-0.426", "-0.016"],
-    ["Representation distance", "+0.002", "-0.030"],
-    ["Predictive entropy", "+0.150", "-0.076"],
-    ["Random selection", "\u2014", "-0.043"],
-    ["Source validation", "\u2014", "-0.052"],
+    ["Reconstruction error", "-0.459", "0.012"],
+    ["Constraint violation", "-0.426", "0.016"],
+    ["Representation distance", "+0.002", "0.030"],
+    ["Predictive entropy", "+0.150", "0.076"],
+    ["Random selection", "\u2014", "0.043"],
+    ["Source validation", "\u2014", "0.052"],
 ], [2500, 1200, 1200]))
-A(picture("rIdFig3", 2926080, 1730078, "Figure 3"))
 A(para(
-    "Mean selection regret by criterion, averaged over three seeds and three target sites. Lower is "
-    "better. Source validation (the standard practice) and reconstruction error (the proposed "
-    "substitute) are highlighted.", "figurecaption", keep=True))
-A(para(
-    "Table VI reports the per-seed rank correlations, since a criterion that only works on one seed "
-    "is of no practical use. Reconstruction error and constraint violation are negative in all three "
-    "seeds, though the strength decays; entropy and representation distance are unstable in sign."))
-A(para("Rank correlation with true target AUROC by seed (more negative is better).", "tablehead"))
-A(table([
-    ["Criterion", "Seed 42", "Seed 43", "Seed 44"],
-    ["Reconstruction error", "-0.600", "-0.521", "-0.255"],
-    ["Constraint violation", "-0.608", "-0.391", "-0.280"],
-    ["Representation distance", "+0.102", "-0.040", "-0.057"],
-    ["Predictive entropy", "+0.216", "+0.170", "+0.065"],
-], [1900, 1000, 1000, 1000]))
+    "Per-seed behavior matters, since a criterion that only works on one seed is of no practical use. "
+    "Reconstruction error is negative in all three (-0.600, -0.521, -0.255), as is constraint "
+    "violation (-0.608, -0.391, -0.280), though both decay in strength; predictive entropy is "
+    "positive in every seed (+0.216, +0.170, +0.065) and representation distance changes sign."))
 A(para(
     "Three findings follow. First, source-hospital validation performs no better than selecting a "
     "configuration at random, and in two of three seeds it is worse; the difference from random is "
@@ -410,15 +472,31 @@ A(para(
     "across all three seeds. Third, predictive entropy and representation distance are not viable "
     "substitutes here; entropy is actively misleading, selecting the worst configuration in every "
     "seed."))
+
+A(para("Why Reconstruction Error Works", "Heading2"))
+A(para(
+    "Reconstruction error succeeds for the reason source validation fails: it is computed where the "
+    "shift is. Masked reconstruction asks the encoder to predict held-out measurements from the rest "
+    "of the window, so it scores how well the cross-variable structure the model learned at the source "
+    "hospital actually holds in target data. A configuration that absorbed source-specific "
+    "measurement structure reconstructs target windows poorly, and the same encoder feeds the "
+    "classifier, so the two degrade together. Crucially the score needs inputs only, so unlike target "
+    "AUROC it is observable before deployment, and unlike source validation it is not blind to the "
+    "shift. It is an observable proxy for a quantity the classical bounds treat as unobservable, "
+    "namely the divergence between source and target [8]."))
+A(para(
+    "That framing also bounds the criterion. It measures how well the encoder fits the target input "
+    "distribution, not how well the label-generating process transfers, so it cannot detect "
+    "degradation coming purely from a change in how the outcome is defined, which is exactly what our "
+    "first confound was."))
 A(para(
     "Notably, the physiological constraint violation score does not outperform generic reconstruction "
     "error. The useful signal is that the model reconstructs target data poorly when it is configured "
-    "badly, an observation consistent with denoising-autoencoder pretraining [17], and domain-specific physiological knowledge adds nothing on top of that. This is a "
-    "negative result for our original method and a positive one for practitioners, since the "
-    "effective criterion requires no domain expertise, no target labels, no additional parameters, "
-    "and one inference pass."))
+    "badly, an observation consistent with denoising-autoencoder pretraining [20], and domain-specific "
+    "physiological knowledge adds nothing on top of that. This is a negative result for our original "
+    "method and a positive one for practitioners, since the effective criterion requires no domain "
+    "expertise, no target labels, no additional parameters, and one inference pass."))
 
-# ── VI. Limitations ──────────────────────────────────────────────────────────
 A(para("Practical Recommendation", "Heading2"))
 A(para(
     "The procedure we would recommend is deliberately unglamorous. Train the candidate "
@@ -429,35 +507,55 @@ A(para(
     "and no target labels, and in our experiments it recovered roughly three quarters of the gap "
     "between standard practice and oracle selection."))
 A(para(
-    "We would also encourage reporting seed variability as a matter of course. In this study "
-    "run-to-run variation reached 4 to 7 AUROC points, which is larger than most published "
-    "cross-hospital improvements we are aware of, including the improvement we originally believed "
+    "Adoption depends on when unlabeled target data is available, and the requirement is mild: input "
+    "channels only, for a modest number of historical stays, with no outcome ascertainment, no chart "
+    "review, and no labeling. Any hospital preparing to deploy a model already holds such data, and "
+    "holds it at the point in the timeline where the selection decision is made, which target AUROC "
+    "by definition is not."))
+A(para(
+    "Governance considerations are real but tractable. Patient-level data frequently cannot leave the "
+    "institution, and the procedure does not require that it does: the computation is forward passes "
+    "only, so candidate models can be shipped to the hospital and one scalar per candidate returned, "
+    "with no patient-level data crossing the boundary. What is still required is an agreement "
+    "permitting on-site execution, and attention to the fact that a returned scalar is a statistic of "
+    "protected data, however weak. Where even that is not permitted before contracting, the criterion "
+    "cannot be applied, and our results indicate the fallback should be treated as providing no "
+    "information rather than a weak signal."))
+
+# ── V. Discussion and future work ────────────────────────────────────────────
+A(para("Discussion and Future Work", "Heading1"))
+A(para(
+    "Conventional source-domain validation is not reliable here: across our sweep it carried no more "
+    "information about deployment performance than choosing at random, and was nearly flat precisely "
+    "where target performance varied most. Scoring candidates by reconstruction error on unlabeled "
+    "target data is cheap, needs no labels and no domain knowledge, and recovered most of the "
+    "achievable performance. For teams deploying clinical models across sites, that substitution is a "
+    "small change to standard practice with a measurable payoff."))
+A(para(
+    "The PCL study earns its place as the vehicle rather than the conclusion. Reporting its failure "
+    "plainly matters: each confound is easy to introduce accidentally, and any one alone would have "
+    "produced a publishable-looking gain. We would also encourage reporting seed variability as a "
+    "matter of course. Run-to-run variation here reached 4 to 7 AUROC points, larger than most "
+    "published cross-hospital improvements we are aware of, including the one we originally believed "
     "we had found. A single-seed comparison at this scale is not informative regardless of how large "
     "the reported difference is."))
-A(para("Limitations", "Heading1"))
 A(para(
-    "Our evaluation covers a single downstream task, sepsis onset prediction, and a single "
-    "architecture; standard multi-task ICU benchmarks [27] and the wider sepsis-prediction "
-    "literature [28], [29] offer natural extensions. Whether the selection result holds for other "
-    "clinical targets or model families is "
-    "untested. Three seeds is a small sample given the 4 to 7 point run-to-run variance we measured, "
-    "and secondary comparisons should be read with that in mind. Our external labels are re-derived "
-    "Sepsis-3 rather than chart review, so residual label noise remains. Finally, we studied ICU "
-    "time-series data from three systems; extension to other clinical domains, and to shifts that are "
-    "not primarily driven by measurement practice, is future work."))
-
-# ── VII. Conclusion ──────────────────────────────────────────────────────────
-A(para("Conclusion", "Heading1"))
+    "What we demonstrate is an effective empirical strategy, not a general solution, and its scope "
+    "should be read accordingly. Our evaluation covers a single downstream task, sepsis onset "
+    "prediction, and a single architecture; standard multi-task ICU benchmarks [21] and the wider "
+    "sepsis-prediction literature [22] offer natural extensions. Whether the selection result "
+    "holds for other clinical targets or model families is untested. Three seeds is a small sample "
+    "given the 4 to 7 point run-to-run variance we measured, and secondary comparisons should be read "
+    "with that in mind. Our external labels are re-derived Sepsis-3 rather than chart review, so "
+    "residual label noise remains. The criterion itself is a proxy for input-distribution fit, so by "
+    "construction it cannot see label-definition shift."))
 A(para(
-    "We built a physiologically-constrained representation-learning method, found that its apparent "
-    "cross-hospital advantage did not survive correcting four confounds, and in the process "
-    "identified a problem that matters more than the method did. Selecting hyperparameters on "
-    "source-hospital validation data, which is standard practice, carries little information about "
-    "performance at a new hospital: in our sweep it was no better than random. Scoring candidate "
-    "configurations by reconstruction error on unlabeled target data is cheap, requires no labels or "
-    "domain knowledge, and recovered most of the achievable performance. For teams deploying clinical "
-    "models across sites, that substitution is a small change to standard practice with a measurable "
-    "payoff."))
+    "Three directions follow. Our proposed mechanism predicts the failure should be worst when "
+    "candidate configurations differ in their reliance on site-specific measurement artifacts, which "
+    "is testable on benchmarks where that reliance can be manipulated. Reconstruction error is one "
+    "member of a family of encoder-side target statistics, and a systematic comparison at clinical "
+    "scale would establish whether it is the right member. Finally, extension to shifts not driven by "
+    "measurement practice, and to domains outside ICU time series, remains open."))
 
 # ── Acknowledgment ───────────────────────────────────────────────────────────
 A(para("Acknowledgment", "Heading5"))
@@ -467,36 +565,38 @@ A(para(
     "in this study."))
 
 # ── References ───────────────────────────────────────────────────────────────
+# Ordered by first appearance in the text, per IEEE style. If a citation is
+# moved, added, or removed, this list must be resequenced to match.
 A(para("References", "Heading5"))
 REFS = [
-    "M. Singer et al., \u201cThe Third International Consensus Definitions for Sepsis and Septic Shock (Sepsis-3),\u201d JAMA, vol. 315, no. 8, pp. 801\u2013810, 2016.",
-    "C. W. Seymour et al., \u201cAssessment of clinical criteria for sepsis,\u201d JAMA, vol. 315, no. 8, pp. 762\u2013774, 2016.",
-    "M. A. Reyna et al., \u201cEarly prediction of sepsis from clinical data: the PhysioNet/Computing in Cardiology Challenge 2019,\u201d Crit. Care Med., vol. 48, no. 2, pp. 210\u2013217, 2019.",
-    "A. E. W. Johnson et al., \u201cMIMIC-IV, a freely accessible electronic health record dataset,\u201d Sci. Data, vol. 10, no. 1, 2023.",
-    "T. J. Pollard et al., \u201cThe eICU Collaborative Research Database,\u201d Sci. Data, vol. 5, 2018.",
-    "I. Gulrajani and D. Lopez-Paz, \u201cIn search of lost domain generalization,\u201d in Proc. Int. Conf. Learn. Represent. (ICLR), 2021.",
-    "M. Arjovsky, L. Bottou, I. Gulrajani, and D. Lopez-Paz, \u201cInvariant risk minimization,\u201d arXiv:1907.02893, 2019.",
-    "E. Rosenfeld, P. Ravikumar, and A. Risteski, \u201cThe risks of invariant risk minimization,\u201d in Proc. ICLR, 2021.",
-    "S. Sagawa, P. W. Koh, T. B. Hashimoto, and P. Liang, \u201cDistributionally robust neural networks for group shifts,\u201d in Proc. ICLR, 2020.",
-    "Y. Ganin et al., \u201cDomain-adversarial training of neural networks,\u201d J. Mach. Learn. Res., vol. 17, no. 59, pp. 1\u201335, 2016.",
-    "Y. Lalou, T. Gnassounou, A. Collas, A. de Mathelin, O. Kachaiev, A. Odonnat, A. Gramfort, T. Moreau, and R. Flamary, \u201cSKADA-Bench: benchmarking unsupervised domain adaptation methods with realistic validation on diverse modalities,\u201d arXiv:2407.11676, 2024.",
-    "S. G. Finlayson et al., \u201cThe clinician and dataset shift in artificial intelligence,\u201d N. Engl. J. Med., vol. 385, no. 3, pp. 283\u2013286, 2021.",
-    "A. Wong et al., \u201cExternal validation of a widely implemented proprietary sepsis prediction model in hospitalized patients,\u201d JAMA Intern. Med., vol. 181, no. 8, pp. 1065\u20131070, 2021.",
-    "T. Chen and C. Guestrin, \u201cXGBoost: a scalable tree boosting system,\u201d in Proc. ACM SIGKDD, 2016, pp. 785\u2013794.",
-    "A. Vaswani et al., “Attention is all you need,” in Proc. Adv. Neural Inf. Process. Syst. (NeurIPS), 2017.",
-    "J. Devlin, M.-W. Chang, K. Lee, and K. Toutanova, “BERT: pre-training of deep bidirectional transformers for language understanding,” in Proc. NAACL-HLT, 2019, pp. 4171–4186.",
-    "P. Vincent, H. Larochelle, Y. Bengio, and P.-A. Manzagol, “Extracting and composing robust features with denoising autoencoders,” in Proc. Int. Conf. Mach. Learn. (ICML), 2008, pp. 1096–1103.",
-    "S. Ben-David, J. Blitzer, K. Crammer, A. Kulesza, F. Pereira, and J. W. Vaughan, “A theory of learning from different domains,” Mach. Learn., vol. 79, no. 1–2, pp. 151–175, 2010.",
+    # [1]-[3]: cross-hospital degradation, cited together in the opening paragraph.
+    "S. G. Finlayson et al., “The clinician and dataset shift in artificial intelligence,” N. Engl. J. Med., vol. 385, no. 3, pp. 283–286, 2021.",
+    "A. Wong et al., “External validation of a widely implemented proprietary sepsis prediction model in hospitalized patients,” JAMA Intern. Med., vol. 181, no. 8, pp. 1065–1070, 2021.",
+    "J. R. Zech, M. A. Badgeley, M. Liu, A. B. Costa, J. J. Titano, and E. K. Oermann, “Variable generalization performance of a deep learning model to detect pneumonia in chest radiographs: a cross-sectional study,” PLoS Med., vol. 15, no. 11, e1002683, 2018.",
+    # [4]-[8]: model selection under shift; [9]-[10] are the remedies that need
+    # what clinical settings lack, and double as the IRM and Group DRO baselines.
+    "I. Gulrajani and D. Lopez-Paz, “In search of lost domain generalization,” in Proc. Int. Conf. Learn. Represent. (ICLR), 2021.",
+    "Y. Lalou, T. Gnassounou, A. Collas, A. de Mathelin, O. Kachaiev, A. Odonnat, A. Gramfort, T. Moreau, and R. Flamary, “SKADA-Bench: benchmarking unsupervised domain adaptation methods with realistic validation on diverse modalities,” arXiv:2407.11676, 2024.",
     "K. You, X. Wang, M. Long, and M. I. Jordan, “Towards accurate model selection in deep unsupervised domain adaptation,” in Proc. ICML, 2019, pp. 7124–7133.",
     "K. Musgrave, S. Belongie, and S.-N. Lim, “Unsupervised domain adaptation: a reality check,” arXiv:2111.15672, 2021.",
-    "P. W. Koh et al., “WILDS: a benchmark of in-the-wild distribution shifts,” in Proc. ICML, 2021, pp. 5637–5664.",
-    "B. Sun and K. Saenko, “Deep CORAL: correlation alignment for deep domain adaptation,” in Proc. ECCV Workshops, 2016, pp. 443–450.",
-    "J. R. Zech, M. A. Badgeley, M. Liu, A. B. Costa, J. J. Titano, and E. K. Oermann, “Variable generalization performance of a deep learning model to detect pneumonia in chest radiographs: a cross-sectional study,” PLoS Med., vol. 15, no. 11, e1002683, 2018.",
-    "J. Futoma, M. Simons, T. Panch, F. Doshi-Velez, and L. A. Celi, “The myth of generalisability in clinical research and machine learning in health care,” Lancet Digit. Health, vol. 2, no. 9, pp. e489–e492, 2020.",
-    "B. Nestor et al., “Feature robustness in non-stationary health records,” in Proc. Mach. Learn. Healthc. Conf. (MLHC), 2019, pp. 381–408.",
+    "S. Ben-David, J. Blitzer, K. Crammer, A. Kulesza, F. Pereira, and J. W. Vaughan, “A theory of learning from different domains,” Mach. Learn., vol. 79, no. 1–2, pp. 151–175, 2010.",
+    "M. Arjovsky, L. Bottou, I. Gulrajani, and D. Lopez-Paz, “Invariant risk minimization,” arXiv:1907.02893, 2019.",
+    "S. Sagawa, P. W. Koh, T. B. Hashimoto, and P. Liang, “Distributionally robust neural networks for group shifts,” in Proc. ICLR, 2020.",
+    # [11]-[15]: architecture, pretraining objective, and the three data sources.
+    "A. Vaswani et al., “Attention is all you need,” in Proc. Adv. Neural Inf. Process. Syst. (NeurIPS), 2017.",
+    "J. Devlin, M.-W. Chang, K. Lee, and K. Toutanova, “BERT: pre-training of deep bidirectional transformers for language understanding,” in Proc. NAACL-HLT, 2019, pp. 4171–4186.",
+    "M. A. Reyna et al., “Early prediction of sepsis from clinical data: the PhysioNet/Computing in Cardiology Challenge 2019,” Crit. Care Med., vol. 48, no. 2, pp. 210–217, 2020.",
+    "A. E. W. Johnson et al., “MIMIC-IV, a freely accessible electronic health record dataset,” Sci. Data, vol. 10, no. 1, 2023.",
+    "T. J. Pollard et al., “The eICU Collaborative Research Database,” Sci. Data, vol. 5, 2018.",
+    # [16]-[19]: label re-derivation and the tree baseline.
+    "M. Singer et al., “The Third International Consensus Definitions for Sepsis and Septic Shock (Sepsis-3),” JAMA, vol. 315, no. 8, pp. 801–810, 2016.",
+    "C. W. Seymour et al., “Assessment of clinical criteria for sepsis,” JAMA, vol. 315, no. 8, pp. 762–774, 2016.",
     "C. Rhee et al., “Incidence and trends of sepsis in US hospitals using clinical vs claims data, 2009–2014,” JAMA, vol. 318, no. 13, pp. 1241–1249, 2017.",
+    "T. Chen and C. Guestrin, “XGBoost: a scalable tree boosting system,” in Proc. ACM SIGKDD, 2016, pp. 785–794.",
+    # [20]: why reconstruction error carries signal.
+    "P. Vincent, H. Larochelle, Y. Bengio, and P.-A. Manzagol, “Extracting and composing robust features with denoising autoencoders,” in Proc. Int. Conf. Mach. Learn. (ICML), 2008, pp. 1096–1103.",
+    # [21]-[22]: extensions named in the discussion.
     "H. Harutyunyan, H. Khachatrian, D. C. Kale, G. Ver Steeg, and A. Galstyan, “Multitask learning and benchmarking with clinical time series data,” Sci. Data, vol. 6, no. 1, 96, 2019.",
-    "L. M. Fleuren et al., “Machine learning for the prediction of sepsis: a systematic review and meta-analysis of diagnostic test accuracy,” Intensive Care Med., vol. 46, no. 3, pp. 383–400, 2020.",
     "M. Moor, B. Rieck, M. Horn, C. R. Jutzeler, and K. Borgwardt, “Early prediction of sepsis in the ICU using machine learning: a systematic review,” Front. Med., vol. 8, 607952, 2021.",
 ]
 for r in REFS:

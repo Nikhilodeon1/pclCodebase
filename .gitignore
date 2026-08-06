@@ -1,7 +1,7 @@
-/_archive
-/.claude
-/data
-/venv
+/_archive/
+/.claude/
+/data/
+/venv/
 /CLAUDE.md
-/chat1_protocol/data
-/chat1_protocol/__pycache__
+/chat1_protocol/data/
+/chat2_papers/

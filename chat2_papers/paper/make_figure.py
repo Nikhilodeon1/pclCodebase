@@ -170,5 +170,49 @@ def figure3():
     print("wrote fig3_regret.png")
 
 
+# ══════════════════════════════════════════════════════════════════════════
+# Figure 0: study overview. The reviewer asked for a single schematic that
+# carries the storyline, so a reader can see where the paper is going before
+# any result: the PCL framework is the vehicle, not the claim, and the chain
+# ends at the selection criterion rather than at the method.
+# ══════════════════════════════════════════════════════════════════════════
+def figure0():
+    from matplotlib.patches import FancyBboxPatch, FancyArrowPatch
+    fig, ax = plt.subplots(figsize=(3.4, 1.28), dpi=400)
+    ax.set_xlim(0, 10); ax.set_ylim(0, 4.6); ax.axis("off")
+
+    def box(x, y, w, h, step, title, sub, face, edge):
+        ax.add_patch(FancyBboxPatch((x, y), w, h, boxstyle="round,pad=0.06",
+                                    facecolor=face, edgecolor=edge, linewidth=0.8))
+        ax.text(x + 0.16, y + h - 0.30, step, ha="left", va="center",
+                fontsize=5.2, color="#6a6a6a")
+        ax.text(x + w / 2, y + h * 0.50, title, ha="center", va="center",
+                fontsize=6.5, weight="bold", color="#1a1a1a")
+        ax.text(x + w / 2, y + h * 0.19, sub, ha="center", va="center",
+                fontsize=5.5, color="#3a3a3a")
+
+    W, H = 4.55, 1.95
+    box(0.05, 2.5, W, H, "1", "PCL framework",
+        "constraint weight is the knob", "#dbeafe", "#0072B2")
+    box(5.4, 2.5, W, H, "2", "Four confounds corrected",
+        "apparent gain disappears", "#f5e6e6", "#8a8a8a")
+    box(0.05, 0.1, W, H, "4", "Reconstruction error",
+        "regret 0.052 to 0.012", "#dbeafe", "#0072B2")
+    box(5.4, 0.1, W, H, "3", "Validation is uninformative",
+        "val spans 0.01, target 0.11", "#fdf0d5", "#E69F00")
+
+    for xytext, xy in [((4.65, 3.48), (5.32, 3.48)),   # 1 -> 2
+                       ((7.68, 2.42), (7.68, 2.13)),   # 2 -> 3
+                       ((5.32, 1.08), (4.65, 1.08))]:  # 3 -> 4
+        ax.add_patch(FancyArrowPatch(xytext, xy, arrowstyle="->",
+                                     mutation_scale=7, color="#5a5a5a",
+                                     linewidth=0.8))
+    fig.tight_layout(pad=0.2)
+    fig.savefig(os.path.join(HERE, "fig0_overview.png"), bbox_inches="tight",
+                facecolor="white")
+    print("wrote fig0_overview.png")
+
+
+figure0()
 figure2()
 figure3()
