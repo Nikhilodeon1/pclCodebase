@@ -66,6 +66,27 @@ def diagnose(name, site1, site2, audit_1, audit_2, verbose=True):
     return flagged, k, ratio
 
 
+def build_scenarios(ids, icd, sofa_single, sofa_window, s1, s2, audit):
+    """Scenario name -> (site1_labels, site2_labels, audit_a, audit_b, expected).
+
+    The audit pair must always be two INDEPENDENTLY COMPUTED label arrays over
+    the same patients. Passing one array twice makes kappa 1.0 by construction
+    and proves nothing about the detector.
+
+    Negative control: SOFA "window" and "single" are both valid Sepsis-3
+    operationalizations, differing only in how the suspicion window is scored.
+    A detector that flags this pair is flagging legitimate implementation
+    variation, which is a false positive.
+    """
+    return {
+        "positive (ICD vs SOFA)": (
+            icd[s1], sofa_single[s2], icd[audit], sofa_single[audit], True),
+        "negative (SOFA window vs single)": (
+            sofa_window[s1], sofa_single[s2],
+            sofa_window[audit], sofa_single[audit], False),
+    }
+
+
 def main():
     from config import EICU_DIR
     from src.data.sepsis import eicu_sepsis_stay_ids
@@ -98,21 +119,18 @@ def main():
     # scenarios so case mix cannot explain any disagreement.
     audit = rng.choice(len(ids), size=min(500, len(ids)), replace=False)
 
-    results = {}
-    # POSITIVE: site 1 ships ICD labels, site 2 ships SOFA labels.
-    results["positive (ICD vs SOFA)"] = diagnose(
-        "POSITIVE: site1=ICD, site2=SOFA", icd[s1], sofa[s2], icd[audit], sofa[audit])
+    # Second valid Sepsis-3 operationalization, used as the negative control.
+    sofa_win_map, _ = eicu_sofa_sepsis_labels(EICU_DIR, pats, mode="window")
+    sofa_window = np.array([int(sofa_win_map.get(int(i), 0)) for i in ids])
+    print(f"SOFA(window) prevalence={sofa_window.mean():.3f}")
 
-    # NEGATIVE CONTROLS: both sites use the same criterion. The audit subset is
-    # then the same criterion against itself, so kappa must be 1.
-    results["negative (both ICD)"] = diagnose(
-        "NEGATIVE CONTROL: both sites = ICD", icd[s1], icd[s2], icd[audit], icd[audit])
-    results["negative (both SOFA)"] = diagnose(
-        "NEGATIVE CONTROL: both sites = SOFA", sofa[s1], sofa[s2], sofa[audit], sofa[audit])
+    results, exp = {}, {}
+    for name, (a, b, aa, ab, e) in build_scenarios(
+            ids, icd, sofa, sofa_window, s1, s2, audit).items():
+        results[name] = diagnose(name, a, b, aa, ab)
+        exp[name] = e
 
     print("\n" + "-" * 78)
-    exp = {"positive (ICD vs SOFA)": True,
-           "negative (both ICD)": False, "negative (both SOFA)": False}
     tp = fp = fn_ = tn = 0
     for name, (flag, k, ratio) in results.items():
         e = exp[name]
@@ -124,9 +142,22 @@ def main():
     print(f"\ndetections: TP={tp} FP={fp} FN={fn_} TN={tn}")
     print("verdict:", "DETECTOR VALIDATED" if fp == 0 and fn_ == 0 else "NEEDS WORK")
 
-    # Show why prevalence alone would not be a sound flag.
+    # Show why prevalence alone would not be a sound flag. The split-noise
+    # ratio is measured directly on ONE criterion across the two halves: that
+    # is a genuine measurement (the halves are different patients), unlike a
+    # kappa computed between an array and itself.
+    # Measured for BOTH criteria: the rarer label carries more split noise, so
+    # reporting only the commoner one would understate how close a legitimate
+    # split comes to the prevalence threshold.
     pos_ratio = results["positive (ICD vs SOFA)"][2]
-    neg_ratio = results["negative (both ICD)"][2]
+    print("\nsame-criterion split noise (one criterion, disjoint halves):")
+    neg_ratio = 0.0
+    for cname, arr in (("ICD", icd), ("SOFA", sofa)):
+        pa, pb = float(arr[s1].mean()), float(arr[s2].mean())
+        r = max(pa, pb) / max(min(pa, pb), 1e-9)
+        neg_ratio = max(neg_ratio, r)
+        print(f"  {cname:<5} prevalence {pa:.3f} vs {pb:.3f}  ratio={r:.2f}"
+              f"{'   <-- within reach of the ' + str(PREV_RATIO_FLAG) + ' threshold' if r > 1.25 else ''}")
     print(f"\nprevalence ratio, positive={pos_ratio:.2f} vs negative={neg_ratio:.2f}: "
           f"{'separable' if pos_ratio > PREV_RATIO_FLAG >= neg_ratio else 'NOT separable'}"
           " — kappa on a fixed audit subset is the reliable signal.")
