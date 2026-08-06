@@ -1,0 +1,73 @@
+==============================================================================
+DETECTOR 1 — external validation (MIMIC-IV demo) + broadened controls
+==============================================================================
+
+labelling MIMIC-IV demo ...
+  cohort n=117  ICD prevalence=0.205
+    SOFA win[-48,+24]      prevalence=0.556
+    SOFA single-point      prevalence=0.376
+    SOFA win[-24,+12]      prevalence=0.521
+    SOFA win[-72,+24]      prevalence=0.556
+
+labelling eICU ...
+  cohort n=1627  ICD prevalence=0.146
+    SOFA win[-48,+24]      prevalence=0.089
+    SOFA single-point      prevalence=0.058
+    SOFA win[-24,+12]      prevalence=0.085
+    SOFA win[-72,+24]      prevalence=0.089
+
+--- MIMIC POSITIVE ICD vs SOFA win[-48,+24] ---
+  prevalence      site1=0.207  site2=0.593  ratio=2.87   (weak signal, flag>1.5)
+  audit subset    n=117  raw agreement=0.547  kappa=0.150   (flag<0.6)
+  ==> FLAGGED: label-definition mismatch
+
+--- MIMIC negative SOFA win[-48,+24] vs SOFA single-point ---
+  prevalence      site1=0.517  site2=0.373  ratio=1.39   (weak signal, flag>1.5)
+  audit subset    n=117  raw agreement=0.821  kappa=0.651   (flag<0.6)
+  ==> clean
+
+--- MIMIC negative SOFA win[-48,+24] vs SOFA win[-24,+12] ---
+  prevalence      site1=0.517  site2=0.576  ratio=1.11   (weak signal, flag>1.5)
+  audit subset    n=117  raw agreement=0.966  kappa=0.931   (flag<0.6)
+  ==> clean
+
+--- MIMIC negative SOFA win[-48,+24] vs SOFA win[-72,+24] ---
+  prevalence      site1=0.517  site2=0.593  ratio=1.15   (weak signal, flag>1.5)
+  audit subset    n=117  raw agreement=1.000  kappa=1.000   (flag<0.6)
+  ==> clean
+
+--- eICU POSITIVE ICD vs SOFA win[-48,+24] ---
+  prevalence      site1=0.153  site2=0.097  ratio=1.57   (weak signal, flag>1.5)
+  audit subset    n=500  raw agreement=0.884  kappa=0.467   (flag<0.6)
+  ==> FLAGGED: label-definition mismatch
+
+--- eICU negative SOFA win[-48,+24] vs SOFA single-point ---
+  prevalence      site1=0.080  site2=0.068  ratio=1.18   (weak signal, flag>1.5)
+  audit subset    n=500  raw agreement=0.962  kappa=0.771   (flag<0.6)
+  ==> clean
+
+--- eICU negative SOFA win[-48,+24] vs SOFA win[-24,+12] ---
+  prevalence      site1=0.080  site2=0.092  ratio=1.15   (weak signal, flag>1.5)
+  audit subset    n=500  raw agreement=0.996  kappa=0.979   (flag<0.6)
+  ==> clean
+
+--- eICU negative SOFA win[-48,+24] vs SOFA win[-72,+24] ---
+  prevalence      site1=0.080  site2=0.097  ratio=1.21   (weak signal, flag>1.5)
+  audit subset    n=500  raw agreement=1.000  kappa=1.000   (flag<0.6)
+  ==> clean
+
+------------------------------------------------------------------------------
+MIMIC POSITIVE ICD vs SOFA win[-48,+24]      kappa=0.150  flagged=True   expected=True   PASS
+MIMIC negative SOFA win[-48,+24] vs SOFA single-point kappa=0.651  flagged=False  expected=False  PASS
+MIMIC negative SOFA win[-48,+24] vs SOFA win[-24,+12] kappa=0.931  flagged=False  expected=False  PASS
+MIMIC negative SOFA win[-48,+24] vs SOFA win[-72,+24] kappa=1.000  flagged=False  expected=False  PASS
+eICU POSITIVE ICD vs SOFA win[-48,+24]       kappa=0.467  flagged=True   expected=True   PASS
+eICU negative SOFA win[-48,+24] vs SOFA single-point kappa=0.771  flagged=False  expected=False  PASS
+eICU negative SOFA win[-48,+24] vs SOFA win[-24,+12] kappa=0.979  flagged=False  expected=False  PASS
+eICU negative SOFA win[-48,+24] vs SOFA win[-72,+24] kappa=1.000  flagged=False  expected=False  PASS
+
+check1 EXTERNAL (MIMIC)     TP=1  FP=0  FN=0  TN=3  prec=1.00 rec=1.00 fpr=0.00
+check1 eICU (original db)   TP=1  FP=0  FN=0  TN=3  prec=1.00 rec=1.00 fpr=0.00
+check1 combined             TP=2  FP=0  FN=0  TN=6  prec=1.00 rec=1.00 fpr=0.00
+
+thinnest margin on a legitimate variant: MIMIC negative SOFA win[-48,+24] vs SOFA single-point kappa=0.651 (flag threshold 0.60)

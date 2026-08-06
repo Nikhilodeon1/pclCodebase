@@ -202,16 +202,22 @@ def _sepsis_from_series(C, si_h, pre_h=SOFA_WINDOW_PRE_H, post_h=SOFA_WINDOW_POS
     return int(best >= 2), best, cardio_alone
 
 
-def _score_stays(suspicion, C_by, all_ids, mode="window"):
-    """Score every suspected-infection stay under BOTH the [-48,+24] window and
-    the single-point variant, so one data-read pass reports both rates. `mode`
-    selects which becomes the returned label."""
+def _score_stays(suspicion, C_by, all_ids, mode="window",
+                 pre_h=SOFA_WINDOW_PRE_H, post_h=SOFA_WINDOW_POST_H):
+    """Score every suspected-infection stay under BOTH the window and the
+    single-point variant, so one data-read pass reports both rates. `mode`
+    selects which becomes the returned label.
+
+    `pre_h`/`post_h` set the suspicion window. They default to the [-48,+24]
+    hours of the original Sepsis-3 operationalization; other widths within the
+    accepted range are equally valid, and varying them is how detector 1's
+    specificity against legitimate labeling variation is measured."""
     labels = {sid: 0 for sid in all_ids}
     n_win = n_pt = 0
     n_cardio_alone = 0      # positive labels (chosen mode) driven by cardio alone
     n_3plus_imputed = 0     # positive stays with >=3 of 6 organs fully unobserved
     for sid, si_h in suspicion.items():
-        w, _, _ = _sepsis_from_series(C_by[sid], si_h, SOFA_WINDOW_PRE_H, SOFA_WINDOW_POST_H)
+        w, _, _ = _sepsis_from_series(C_by[sid], si_h, pre_h, post_h)
         p, _, ca = _sepsis_from_series(C_by[sid], si_h, 0.0, 0.0)
         n_win += w
         n_pt += p
@@ -288,7 +294,8 @@ def _hours_since(times, intime):
     return (pd.to_datetime(times) - intime).dt.total_seconds().values / 3600.0
 
 
-def mimic_sofa_sepsis_labels(data_path, stays_df, mode="window"):
+def mimic_sofa_sepsis_labels(data_path, stays_df, mode="window",
+                             pre_h=SOFA_WINDOW_PRE_H, post_h=SOFA_WINDOW_POST_H):
     """Per-stay Sepsis-3 labels for MIMIC-IV.
 
     stays_df needs: stay_id, hadm_id, subject_id, intime (datetime).
@@ -319,7 +326,8 @@ def mimic_sofa_sepsis_labels(data_path, stays_df, mode="window"):
                                C_by_stay, observed)
 
     # 3) score (both modes; `mode` picks the returned label)
-    labels, n_win, n_pt, extras = _score_stays(suspicion, C_by_stay, stay_ids, mode=mode)
+    labels, n_win, n_pt, extras = _score_stays(suspicion, C_by_stay, stay_ids, mode=mode,
+                                              pre_h=pre_h, post_h=post_h)
     n_pos = sum(labels.values())
 
     n = max(1, len(stay_ids))
@@ -467,7 +475,8 @@ def _eicu_offset_hours(offset_min):
     return pd.to_numeric(offset_min, errors="coerce").values / 60.0
 
 
-def eicu_sofa_sepsis_labels(data_path, patients_df, mode="window"):
+def eicu_sofa_sepsis_labels(data_path, patients_df, mode="window",
+                            pre_h=SOFA_WINDOW_PRE_H, post_h=SOFA_WINDOW_POST_H):
     """Per-stay Sepsis-3 labels for eICU. patients_df needs patientunitstayid.
     All eICU times are minute-offsets from unit admission (0h). Returns
     (labels {stay_id:0/1}, diagnostics)."""
@@ -484,7 +493,8 @@ def eicu_sofa_sepsis_labels(data_path, patients_df, mode="window"):
     if infected:
         _eicu_fill_components(data_path, infected, C_by, observed)
 
-    labels, n_win, n_pt, extras = _score_stays(suspicion, C_by, pid_set, mode=mode)
+    labels, n_win, n_pt, extras = _score_stays(suspicion, C_by, pid_set, mode=mode,
+                                              pre_h=pre_h, post_h=post_h)
     n_pos = sum(labels.values())
 
     n = max(1, len(pid_set)); ninf = max(1, len(infected))
