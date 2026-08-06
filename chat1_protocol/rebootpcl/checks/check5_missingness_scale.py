@@ -151,38 +151,76 @@ def run_check(name_a, files_a, name_b, files_b, verbose=True):
     return flagged
 
 
-def main():
-    n = int(sys.argv[1]) if len(sys.argv) > 1 else 1500
+def sample_files(seed, n):
+    """Seeded random stay samples from each site.
+
+    The positive arm previously took `sorted(os.listdir(...))[:n]`, an
+    alphabetical prefix, so every run scored the same stays and the result had
+    no sampling variance to report.
+    """
     a_dir = os.path.join(ROOT, "training_setA")
     b_dir = os.path.join(ROOT, "training_setB")
     if not os.path.isdir(a_dir):
         sys.exit(f"missing {a_dir}")
-    fa = [os.path.join(a_dir, f) for f in sorted(os.listdir(a_dir))[:2 * n]
-          if f.endswith(".psv")]
-    fb = [os.path.join(b_dir, f) for f in sorted(os.listdir(b_dir))[:n]
-          if f.endswith(".psv")]
+    rng = np.random.default_rng(seed)
+    all_a = [f for f in sorted(os.listdir(a_dir)) if f.endswith(".psv")]
+    all_b = [f for f in sorted(os.listdir(b_dir)) if f.endswith(".psv")]
+    fa = [os.path.join(a_dir, all_a[i])
+          for i in rng.permutation(len(all_a))[:2 * n]]
+    fb = [os.path.join(b_dir, all_b[i])
+          for i in rng.permutation(len(all_b))[:n]]
+    return fa, fb
+
+
+def run(seed=0, n=1200, pair=None, verbose=False):
+    """One Case for the cross-site positive and one for the same-site control.
+
+    `pair` overrides the default PhysioNet A/B positive with
+    (name_a, files_a, name_b, files_b, expected_flag), used by the external
+    validation to point the same diagnostic at a different dataset pair.
+    """
+    from rebootpcl.harness import Case
+    fa, fb = sample_files(seed, n)
+
+    if pair is None:
+        pos_args = ("PhysioNet Site A", fa[:n], "PhysioNet Site B", fb, True)
+    else:
+        pos_args = pair
+    na, la, nb, lb, exp = pos_args
+    pos = run_check(na, la, nb, lb, verbose=verbose)
+
+    # NEGATIVE CONTROL: Site A split against itself. Same recording practice,
+    # so a well-behaved detector must stay silent.
+    half = len(fa) // 2
+    neg = run_check(f"{na} (half 1)", fa[:half],
+                    f"{na} (half 2)", fa[half:], verbose=verbose)
+
+    return [Case(f"positive ({na} vs {nb})", bool(pos), bool(exp),
+                 {"seed": seed, "n": n}),
+            Case(f"negative ({na} vs itself)", bool(neg), False,
+                 {"seed": seed, "n": n})]
+
+
+def main():
+    from rebootpcl.harness import confusion, fmt_matrix
+    n = int(sys.argv[1]) if len(sys.argv) > 1 else 1500
+    seed = int(sys.argv[2]) if len(sys.argv) > 2 else 0
 
     print("=" * 78)
     print("CHECK 5 — missingness/scale artifacts in aggregate cross-site scores")
     print("=" * 78)
-    print(f"(sampling {n} stays per arm)")
+    print(f"(sampling {n} stays per arm, seed={seed})")
 
-    # POSITIVE: two genuinely different sites, known differing lab practice.
-    pos = run_check("PhysioNet Site A", fa[:n], "PhysioNet Site B", fb)
-
-    # NEGATIVE CONTROL: Site A split against itself. Same recording practice, so
-    # a well-behaved detector must stay silent.
-    rng = np.random.default_rng(0)
-    idx = rng.permutation(len(fa))
-    half = len(fa) // 2
-    neg = run_check("Site A (half 1)", [fa[i] for i in idx[:half]],
-                    "Site A (half 2)", [fa[i] for i in idx[half:]])
+    cases = run(seed=seed, n=n, verbose=True)
 
     print("\n" + "-" * 78)
-    print(f"positive case flagged : {pos}   (expected True)")
-    print(f"negative control flagged: {neg}   (expected False)")
-    ok = pos and not neg
-    print("verdict:", "DETECTOR VALIDATED" if ok else "NEEDS WORK")
+    for c in cases:
+        print(f"{c.name:<40} flagged={str(c.flagged):<6} "
+              f"expected={str(c.expected)}")
+    counts = confusion(cases)
+    print("\n" + fmt_matrix("check5", counts))
+    print("verdict:", "DETECTOR VALIDATED"
+          if counts["FP"] == 0 and counts["FN"] == 0 else "NEEDS WORK")
 
 
 if __name__ == "__main__":

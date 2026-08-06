@@ -108,6 +108,92 @@ def run_one(src_ds, leak_ds, probe_ds, frac, seed, epochs, device):
     return probe_loss(model, pl, MASK_PROB, device), n_leak
 
 
+# One-sided t critical values at alpha=0.05, indexed by degrees of freedom.
+# Hardcoded so the check keeps no scipy dependency.
+_T_CRIT_05 = {1: 6.314, 2: 2.920, 3: 2.353, 4: 2.132, 5: 2.015, 6: 1.943,
+              7: 1.895, 8: 1.860, 9: 1.833, 10: 1.812}
+
+
+def flag_from_relative(rel):
+    """Decide detection from per-seed relative deltas.
+
+    Leakage must LOWER probe loss: every seed negative, and the paired
+    one-sided t statistic past the df-appropriate 5% critical value. A fixed
+    threshold of -2.0 corresponds to no alpha at small n (df=2 needs 2.920),
+    so the critical value is looked up by df.
+
+    Returns (flagged, t, critical_t).
+    """
+    rel = np.asarray(rel, float)
+    n = len(rel)
+    if n < 3:
+        return False, 0.0, float("inf")
+    crit = _T_CRIT_05.get(n - 1, 1.645)      # large-df limit
+    sd = float(rel.std(ddof=1))
+    t = float(rel.mean() / (sd / np.sqrt(n))) if sd > 1e-12 else 0.0
+    return bool(np.all(rel < 0) and t <= -crit), t, crit
+
+
+def measure(stays, seeds, epochs, device, base_seed=42, verbose=False):
+    """Probe loss per leakage level, one value per seed.
+
+    The split is re-drawn for every seed, so probe slices differ across seeds
+    and absolute losses are NOT comparable between them. That is deliberate:
+    the analysis is paired within seed, which is what makes the levels
+    comparable while still letting split variance into the spread.
+    """
+    results = {frac: [] for frac in LEVELS}
+    for s in range(seeds):
+        seed = base_seed + s
+        src_ds, leak_ds, probe_ds = build(stays, seed=seed)
+        if verbose and s == 0:
+            print(f"source={len(src_ds.samples)}  leak pool={len(leak_ds.samples)}  "
+                  f"probe={len(probe_ds.samples)} (probe never pretrained on)",
+                  flush=True)
+        for frac in LEVELS:
+            l, _ = run_one(src_ds, leak_ds, probe_ds, frac, seed, epochs, device)
+            results[frac].append(l)
+        if verbose:
+            print(f"  seed {seed} done ({s + 1}/{seeds})", flush=True)
+    return results
+
+
+def analyse(results):
+    """(detected, stats) from the paired within-seed relative deltas."""
+    base = np.array(results[0.0])
+    detected, stats = {}, {}
+    for frac in LEVELS:
+        cur = np.array(results[frac])
+        rel = (cur - base) / np.maximum(base, 1e-12)
+        sig, t, crit = flag_from_relative(rel)
+        detected[frac] = bool(frac > 0 and sig)
+        stats[frac] = {"mean_loss": float(cur.mean()),
+                       "rel_delta": float(rel.mean()),
+                       "t": t, "crit": crit,
+                       "sign_agree": bool(np.all(rel < 0)),
+                       "losses": [float(x) for x in cur]}
+    return detected, stats
+
+
+def run(seed=0, stays=900, epochs=3, seeds=5, verbose=False, device=None):
+    """One Case per leakage level. 0% is the false-positive control.
+
+    `seed` shifts the whole seed block, so a sweep over it measures whether the
+    VERDICT reproduces, not whether one training run does.
+    """
+    from rebootpcl.harness import Case
+    from config import TEST_MODE
+    if not TEST_MODE:
+        raise RuntimeError("check 2 requires PCL_TEST_MODE=1")
+    device = device or ("cuda" if torch.cuda.is_available() else "cpu")
+
+    results = measure(stays, seeds, epochs, device,
+                      base_seed=42 + 100 * seed, verbose=verbose)
+    detected, stats = analyse(results)
+    return [Case(f"leakage {int(f * 100)}%", detected[f], bool(f > 0),
+                 dict(stats[f], seed=seed)) for f in LEVELS]
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--stays", type=int, default=1200)
@@ -116,6 +202,7 @@ def main():
     args = ap.parse_args()
 
     from config import TEST_MODE, D_MODEL, N_LAYERS
+    from rebootpcl.harness import Case, confusion, fmt_matrix
     if not TEST_MODE:
         sys.exit("Run with PCL_TEST_MODE=1 — this check is deliberately small.")
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -125,28 +212,19 @@ def main():
     print("=" * 78)
     print(f"model d={D_MODEL} layers={N_LAYERS} | device={device} | "
           f"{args.stays} stays/site | {args.seeds} seeds | {args.epochs} epochs")
+    print("NOTE: the data split is re-drawn per seed (site sample, leak pool and "
+          "probe slice), so the reported spread includes split variance.",
+          flush=True)
 
-    src_ds, leak_ds, probe_ds = build(args.stays, seed=0)
-    print(f"source={len(src_ds.samples)}  leak pool={len(leak_ds.samples)}  "
-          f"probe={len(probe_ds.samples)} (probe never pretrained on)")
+    results = measure(args.stays, args.seeds, args.epochs, device, verbose=True)
+    detected, stats = analyse(results)
 
-    results = {}
     for frac in LEVELS:
-        losses = []
-        for s in range(args.seeds):
-            l, n_leak = run_one(src_ds, leak_ds, probe_ds, frac, 42 + s,
-                                args.epochs, device)
-            losses.append(l)
-        results[frac] = losses
-        print(f"  leakage {int(frac*100):>3}%  (n_leak={n_leak:>4})  "
-              f"probe loss {np.mean(losses):.6f} +/- {np.std(losses, ddof=1) if len(losses)>1 else 0:.6f}"
-              f"   {[round(x,5) for x in losses]}")
+        losses = results[frac]
+        print(f"  leakage {int(frac*100):>3}%  probe loss {np.mean(losses):.6f} "
+              f"+/- {np.std(losses, ddof=1) if len(losses) > 1 else 0:.6f}"
+              f"   {[round(x, 5) for x in losses]}")
 
-    # PAIRED analysis. Every leakage level is run with the SAME seeds, and the
-    # seed effect is a large shared nuisance (one seed sits above another at every
-    # level). Comparing group means against the 0% spread therefore buries a real
-    # effect in seed variance; differencing within seed removes it. We use the
-    # RELATIVE change so a seed's baseline loss level cancels too.
     base = np.array(results[0.0])
     print("")
     print(f"null (0% leakage): mean={base.mean():.6f} "
@@ -155,25 +233,20 @@ def main():
     print("")
     print(f"{'leakage':>9}{'probe loss':>13}{'paired rel. delta':>20}"
           f"{'t':>8}{'agree':>8}{'detected':>10}")
-    detected = {}
     for frac in LEVELS:
-        cur = np.array(results[frac])
-        rel = (cur - base) / np.maximum(base, 1e-12)      # per-seed relative change
-        mu = float(cur.mean())
-        rmu = float(rel.mean())
-        rsd = float(rel.std(ddof=1)) if len(rel) > 1 else 0.0
-        t = rmu / (rsd / np.sqrt(len(rel))) if rsd > 1e-12 else 0.0
-        agree = bool(np.all(rel < 0)) and frac > 0
-        # Leakage must LOWER probe loss, consistently across every seed.
-        flag = bool(frac > 0 and agree and (t <= -2.0 or len(rel) < 3))
-        detected[frac] = flag
-        print(f"{int(frac*100):>8}%{mu:>13.6f}{rmu*100:>19.1f}%{t:>8.2f}"
-              f"{str(agree):>8}{str(flag):>10}")
+        st = stats[frac]
+        print(f"{int(frac*100):>8}%{st['mean_loss']:>13.6f}"
+              f"{st['rel_delta']*100:>19.1f}%{st['t']:>8.2f}"
+              f"{str(st['sign_agree']):>8}{str(detected[frac]):>10}"
+              f"   (crit {-st['crit']:.3f})")
 
     floor = next((f for f in LEVELS if f > 0 and detected[f]), None)
     print("\n" + "-" * 78)
     print(f"false positive at 0% leakage: {detected[0.0]}   (must be False)")
     print(f"detection floor: {f'{int(floor*100)}% leakage' if floor else 'NOT DETECTED at any level tested'}")
+    cases = [Case(f"leakage {int(f * 100)}%", detected[f], bool(f > 0), stats[f])
+             for f in LEVELS]
+    print("\n" + fmt_matrix("check2", confusion(cases)))
     json.dump({str(k): v for k, v in results.items()},
               open(os.path.join(HERE, "check2_results.json"), "w"), indent=2)
     ok = (not detected[0.0]) and (floor is not None)

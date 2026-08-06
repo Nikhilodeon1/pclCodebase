@@ -87,16 +87,26 @@ def build_scenarios(ids, icd, sofa_single, sofa_window, s1, s2, audit):
     }
 
 
-def main():
+_LABELS = None
+
+
+def load_labels(verbose=False):
+    """(ids, icd, sofa_single, sofa_window) over the eICU cohort.
+
+    Cached at module level: labeling is by far the expensive step here and does
+    not depend on the split seed, so a multi-seed sweep pays for it once rather
+    than once per seed.
+    """
+    global _LABELS
+    if _LABELS is not None:
+        return _LABELS
+
     from config import EICU_DIR
     from src.data.sepsis import eicu_sepsis_stay_ids
     from src.data.sofa_sepsis import eicu_sofa_sepsis_labels
 
-    print("=" * 78)
-    print("CHECK 1 — label-definition shift across sites")
-    print("=" * 78)
-    print(f"data: {EICU_DIR}")
-
+    if verbose:
+        print(f"data: {EICU_DIR}")
     pats = pd.read_csv(os.path.join(EICU_DIR, "patient.csv.gz"),
                        usecols=["patientunitstayid", "unitdischargeoffset"],
                        encoding_errors="replace")
@@ -108,56 +118,88 @@ def main():
     icd = np.array([1 if i in icd_set else 0 for i in ids])
     sofa_map, _ = eicu_sofa_sepsis_labels(EICU_DIR, pats, mode="single")
     sofa = np.array([int(sofa_map.get(int(i), 0)) for i in ids])
-    print(f"cohort n={len(ids)}   ICD prevalence={icd.mean():.3f}   "
-          f"SOFA prevalence={sofa.mean():.3f}")
-
-    rng = np.random.default_rng(0)
-    perm = rng.permutation(len(ids))
-    half = len(ids) // 2
-    s1, s2 = perm[:half], perm[half:]
-    # Audit subset: patients scored under BOTH criteria. Held fixed across
-    # scenarios so case mix cannot explain any disagreement.
-    audit = rng.choice(len(ids), size=min(500, len(ids)), replace=False)
-
     # Second valid Sepsis-3 operationalization, used as the negative control.
     sofa_win_map, _ = eicu_sofa_sepsis_labels(EICU_DIR, pats, mode="window")
     sofa_window = np.array([int(sofa_win_map.get(int(i), 0)) for i in ids])
-    print(f"SOFA(window) prevalence={sofa_window.mean():.3f}")
 
-    results, exp = {}, {}
+    if verbose:
+        print(f"cohort n={len(ids)}   ICD prevalence={icd.mean():.3f}   "
+              f"SOFA(single) prevalence={sofa.mean():.3f}   "
+              f"SOFA(window) prevalence={sofa_window.mean():.3f}")
+    _LABELS = (ids, icd, sofa, sofa_window)
+    return _LABELS
+
+
+def split(ids, seed):
+    """Two disjoint site halves plus a fixed audit subset, drawn at `seed`."""
+    rng = np.random.default_rng(seed)
+    perm = rng.permutation(len(ids))
+    half = len(ids) // 2
+    # Audit subset: patients scored under BOTH criteria, held fixed across
+    # scenarios so case mix cannot explain any disagreement.
+    audit = rng.choice(len(ids), size=min(500, len(ids)), replace=False)
+    return perm[:half], perm[half:], audit
+
+
+def run(seed=0, verbose=False):
+    from rebootpcl.harness import Case
+    ids, icd, sofa, sofa_window = load_labels(verbose=verbose)
+    s1, s2, audit = split(ids, seed)
+
+    out = []
     for name, (a, b, aa, ab, e) in build_scenarios(
             ids, icd, sofa, sofa_window, s1, s2, audit).items():
-        results[name] = diagnose(name, a, b, aa, ab)
-        exp[name] = e
+        flag, k, ratio = diagnose(name, a, b, aa, ab, verbose=verbose)
+        out.append(Case(name, bool(flag), bool(e),
+                        {"kappa": k, "prevalence_ratio": ratio, "seed": seed}))
+    return out
 
-    print("\n" + "-" * 78)
-    tp = fp = fn_ = tn = 0
-    for name, (flag, k, ratio) in results.items():
-        e = exp[name]
-        ok = (flag == e)
-        tp += (flag and e); fp += (flag and not e)
-        fn_ += ((not flag) and e); tn += ((not flag) and not e)
-        print(f"{name:<26} flagged={str(flag):<6} expected={str(e):<6} "
-              f"kappa={k:.3f}  {'PASS' if ok else 'FAIL'}")
-    print(f"\ndetections: TP={tp} FP={fp} FN={fn_} TN={tn}")
-    print("verdict:", "DETECTOR VALIDATED" if fp == 0 and fn_ == 0 else "NEEDS WORK")
 
-    # Show why prevalence alone would not be a sound flag. The split-noise
-    # ratio is measured directly on ONE criterion across the two halves: that
-    # is a genuine measurement (the halves are different patients), unlike a
-    # kappa computed between an array and itself.
-    # Measured for BOTH criteria: the rarer label carries more split noise, so
-    # reporting only the commoner one would understate how close a legitimate
-    # split comes to the prevalence threshold.
-    pos_ratio = results["positive (ICD vs SOFA)"][2]
-    print("\nsame-criterion split noise (one criterion, disjoint halves):")
-    neg_ratio = 0.0
+def split_noise(seed=0):
+    """Prevalence ratio between the two halves under ONE criterion.
+
+    Measured for both criteria: the rarer label carries more split noise, so
+    reporting only the commoner one would understate how close a perfectly
+    legitimate split comes to the prevalence threshold.
+    """
+    ids, icd, sofa, _ = load_labels()
+    s1, s2, _ = split(ids, seed)
+    out = {}
     for cname, arr in (("ICD", icd), ("SOFA", sofa)):
         pa, pb = float(arr[s1].mean()), float(arr[s2].mean())
-        r = max(pa, pb) / max(min(pa, pb), 1e-9)
+        out[cname] = (pa, pb, max(pa, pb) / max(min(pa, pb), 1e-9))
+    return out
+
+
+def main():
+    from rebootpcl.harness import confusion, fmt_matrix
+
+    print("=" * 78)
+    print("CHECK 1 — label-definition shift across sites")
+    print("=" * 78)
+
+    cases = run(seed=0, verbose=True)
+
+    print("\n" + "-" * 78)
+    for c in cases:
+        ok = (c.flagged == c.expected)
+        print(f"{c.name:<34} flagged={str(c.flagged):<6} "
+              f"expected={str(c.expected):<6} kappa={c.stats['kappa']:.3f}  "
+              f"{'PASS' if ok else 'FAIL'}")
+    counts = confusion(cases)
+    print("\n" + fmt_matrix("check1", counts))
+    print("verdict:", "DETECTOR VALIDATED"
+          if counts["FP"] == 0 and counts["FN"] == 0 else "NEEDS WORK")
+
+    # Why prevalence alone would not be a sound flag.
+    pos_ratio = next(c.stats["prevalence_ratio"] for c in cases if c.expected)
+    print("\nsame-criterion split noise (one criterion, disjoint halves):")
+    neg_ratio = 0.0
+    for cname, (pa, pb, r) in split_noise(seed=0).items():
         neg_ratio = max(neg_ratio, r)
-        print(f"  {cname:<5} prevalence {pa:.3f} vs {pb:.3f}  ratio={r:.2f}"
-              f"{'   <-- within reach of the ' + str(PREV_RATIO_FLAG) + ' threshold' if r > 1.25 else ''}")
+        near = (f"   <-- within reach of the {PREV_RATIO_FLAG} threshold"
+                if r > 1.25 else "")
+        print(f"  {cname:<5} prevalence {pa:.3f} vs {pb:.3f}  ratio={r:.2f}{near}")
     print(f"\nprevalence ratio, positive={pos_ratio:.2f} vs negative={neg_ratio:.2f}: "
           f"{'separable' if pos_ratio > PREV_RATIO_FLAG >= neg_ratio else 'NOT separable'}"
           " — kappa on a fixed audit subset is the reliable signal.")

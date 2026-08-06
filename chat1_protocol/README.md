@@ -26,11 +26,22 @@ Local runs exceed the 2-minute tool timeout — use
 
 ## Results (all validated)
     check  confound                     TP FP FN TN   headline
-    1      label-definition shift        1  0  0  2   kappa 0.358 vs 1.000 controls
-    2      pretraining leakage           3  0  0  1   detection floor 5%
+    1      label-definition shift        1  0  0  1   kappa 0.358 vs 0.771 control
+    2      pretraining leakage           3  0  0  1   detection floor 5%, 5 seeds
     3      OOD-contaminated selection    1  0  0  1   caught the real historical bug
     4      circular constraints          1  0  0  8   precision 1.00 recall 1.00
     5      missingness/scale             1  0  0  1   composition explains 49% of gap
+
+Check 1's TN was 2 and its controls reported kappa 1.000. Those controls passed
+the same audit array as both arguments to Cohen's kappa, so the result was 1.0
+by construction. The control is now SOFA window-mode against SOFA single-mode —
+two valid Sepsis-3 operationalizations — giving kappa 0.771 (raw agreement
+0.962) and one genuinely measured TN.
+
+Check 2 now re-draws the data split per seed, so the spread includes split
+variance, and flags against the df-appropriate one-sided 5% t critical value
+rather than a fixed -2.0. At 5 seeds the floor is unchanged at 5% leakage
+(rel. delta -3.1%, t=-3.96 against crit -2.132).
 
 ## Notes that matter
 * `data/` is a Windows directory JUNCTION to `../data`. Do NOT `rm -rf` it —

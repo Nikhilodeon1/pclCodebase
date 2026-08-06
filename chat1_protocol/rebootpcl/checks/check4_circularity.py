@@ -90,6 +90,20 @@ def verify_lineage_against_code():
     return inverts
 
 
+def run(lineage=None, expected=None, verbose=False):
+    """One Case per (dataset, constraint) cell of the lineage table."""
+    from rebootpcl.harness import Case
+    lineage = LINEAGE if lineage is None else lineage
+    expected = EXPECTED if expected is None else expected
+    out = []
+    for (ds, c), exp in expected.items():
+        got, why = is_circular(ds, c, lineage=lineage)
+        if verbose:
+            print(f"{ds:<12}{c:<16}{str(got):>9}{str(exp):>10}   {why}")
+        out.append(Case(f"{ds}/{c}", bool(got), bool(exp), {"reason": why}))
+    return out
+
+
 def main():
     print("=" * 74)
     print("CHECK 4 — circular / self-referential derived constraints")

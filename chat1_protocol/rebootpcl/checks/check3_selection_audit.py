@@ -116,6 +116,50 @@ def audit_file(path):
     return out
 
 
+def verdict_for_file(res):
+    """File-level verdict from every sweep in the file.
+
+    One contaminated sweep condemns the file: a script that selects on OOD data
+    anywhere has contaminated the numbers it reports. Reading only res[0] would
+    let a clean first sweep mask a contaminated second one.
+    """
+    verdicts = {r["verdict"] for r in res}
+    if not verdicts:
+        return "INDETERMINATE"
+    if "CONTAMINATED" in verdicts:
+        return "CONTAMINATED"
+    return "OK" if "OK" in verdicts else "INDETERMINATE"
+
+
+def run(paths=None, verbose=False):
+    """paths: list of (path, expected_flag). Defaults to the two historical
+    fixtures -- the real buggy sweep and its correction."""
+    from rebootpcl.harness import Case
+    if paths is None:
+        paths = [(os.path.join(FIX, "sweep_BUGGY.py"), True),
+                 (os.path.join(FIX, "sweep_FIXED.py"), False)]
+    out = []
+    for path, exp in paths:
+        if not os.path.exists(path):
+            raise FileNotFoundError(path)
+        res = audit_file(path)
+        verdict = verdict_for_file(res)
+        flagged = (verdict == "CONTAMINATED")
+        if verbose:
+            print(f"\n{os.path.basename(path)}  -> {verdict}")
+            for r in res:
+                print(f"   {r['function']}() line {r['line']}: {r['verdict']}")
+                for f in r["findings"]:
+                    print(f"      eval at line {f['line']} reads "
+                          f"{f['resolved'].upper()} data")
+        out.append(Case(os.path.basename(path), flagged, bool(exp),
+                        {"verdict": verdict,
+                         "sweeps": [r["function"] for r in res],
+                         "contaminated": [r["function"] for r in res
+                                          if r["verdict"] == "CONTAMINATED"]}))
+    return out
+
+
 def main():
     cases = [("BUGGY (commit c7cb42f)", os.path.join(FIX, "sweep_BUGGY.py"), "CONTAMINATED"),
              ("FIXED (current)", os.path.join(FIX, "sweep_FIXED.py"), "OK")]
@@ -135,7 +179,7 @@ def main():
             print(f"   {r['function']}() line {r['line']}: {r['verdict']}")
             for f in r["findings"]:
                 print(f"      eval at line {f['line']} reads {f['resolved'].upper()} data")
-        got = res[0]["verdict"] if res else "INDETERMINATE"
+        got = verdict_for_file(res)
         ok = (got == expected)
         print(f"   expected {expected} -> {'PASS' if ok else 'FAIL'}")
         if expected == "CONTAMINATED":
