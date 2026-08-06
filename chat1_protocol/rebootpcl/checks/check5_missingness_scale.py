@@ -148,31 +148,38 @@ def run_check(name_a, files_a, name_b, files_b, verbose=True):
         print(f"  share of gap explained by composition alone: {explained:.2f} "
               f"(flag > {COMP_EXPLAINS_FLAG})")
         print(f"  ==> {'FLAGGED: composition artifact' if flagged else 'clean'}")
-    return flagged
+    return flagged, {"max_avail_ratio": float(max_ratio),
+                     "explained": float(explained),
+                     "naive_gap": float(naive_gap),
+                     "comp_gap": float(comp_gap),
+                     "n_stays_a": len(A), "n_stays_b": len(B)}
 
 
-def sample_files(seed, n):
+def sample_files(seed, n, legacy=False):
     """Seeded random stay samples from each site.
 
-    The positive arm previously took `sorted(os.listdir(...))[:n]`, an
-    alphabetical prefix, so every run scored the same stays and the result had
-    no sampling variance to report.
+    `legacy=True` reproduces the original selection: `sorted(listdir)[:n]`, an
+    alphabetical prefix. That prefix scored the same stays on every run, so the
+    result carried no sampling variance -- and PhysioNet filenames are patient
+    IDs, so a prefix is not a random sample of the site.
     """
     a_dir = os.path.join(ROOT, "training_setA")
     b_dir = os.path.join(ROOT, "training_setB")
     if not os.path.isdir(a_dir):
         sys.exit(f"missing {a_dir}")
-    rng = np.random.default_rng(seed)
     all_a = [f for f in sorted(os.listdir(a_dir)) if f.endswith(".psv")]
     all_b = [f for f in sorted(os.listdir(b_dir)) if f.endswith(".psv")]
-    fa = [os.path.join(a_dir, all_a[i])
-          for i in rng.permutation(len(all_a))[:2 * n]]
-    fb = [os.path.join(b_dir, all_b[i])
-          for i in rng.permutation(len(all_b))[:n]]
-    return fa, fb
+    if legacy:
+        ia, ib = range(2 * n), range(n)
+    else:
+        rng = np.random.default_rng(seed)
+        ia = rng.permutation(len(all_a))[:2 * n]
+        ib = rng.permutation(len(all_b))[:n]
+    return ([os.path.join(a_dir, all_a[i]) for i in ia],
+            [os.path.join(b_dir, all_b[i]) for i in ib])
 
 
-def run(seed=0, n=1200, pair=None, verbose=False):
+def run(seed=0, n=1200, pair=None, verbose=False, legacy=False):
     """One Case for the cross-site positive and one for the same-site control.
 
     `pair` overrides the default PhysioNet A/B positive with
@@ -180,25 +187,25 @@ def run(seed=0, n=1200, pair=None, verbose=False):
     validation to point the same diagnostic at a different dataset pair.
     """
     from rebootpcl.harness import Case
-    fa, fb = sample_files(seed, n)
+    fa, fb = sample_files(seed, n, legacy=legacy)
 
     if pair is None:
         pos_args = ("PhysioNet Site A", fa[:n], "PhysioNet Site B", fb, True)
     else:
         pos_args = pair
     na, la, nb, lb, exp = pos_args
-    pos = run_check(na, la, nb, lb, verbose=verbose)
+    pos, pos_stats = run_check(na, la, nb, lb, verbose=verbose)
 
     # NEGATIVE CONTROL: Site A split against itself. Same recording practice,
     # so a well-behaved detector must stay silent.
     half = len(fa) // 2
-    neg = run_check(f"{na} (half 1)", fa[:half],
-                    f"{na} (half 2)", fa[half:], verbose=verbose)
+    neg, neg_stats = run_check(f"{na} (half 1)", fa[:half],
+                               f"{na} (half 2)", fa[half:], verbose=verbose)
 
     return [Case(f"positive ({na} vs {nb})", bool(pos), bool(exp),
-                 {"seed": seed, "n": n}),
+                 dict(pos_stats, seed=seed, n=n)),
             Case(f"negative ({na} vs itself)", bool(neg), False,
-                 {"seed": seed, "n": n})]
+                 dict(neg_stats, seed=seed, n=n))]
 
 
 def main():
