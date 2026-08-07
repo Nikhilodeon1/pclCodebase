@@ -51,33 +51,57 @@ SOFA_VARIANTS = [
 ]
 
 
-def mimic_labels():
-    """(ids, icd, {variant label: sofa array}) over the MIMIC-IV demo cohort."""
+def mimic_labels(verbose=False):
+    """(ids, icd, {variant label: sofa array}) over the MIMIC-IV cohort.
+
+    Reads the event tables ONCE and scores every suspicion-window variant from
+    that single pass. On the demo the redundancy was free; on full MIMIC-IV the
+    event tables are hundreds of millions of rows and four passes would dominate
+    the runtime.
+    """
+    import time
     from config import MIMIC_DIR
     from src.data.mimic4 import load_stays
     from src.data.sepsis import mimic_sepsis_hadm_ids
-    from src.data.sofa_sepsis import mimic_sofa_sepsis_labels
+    from src.data.sofa_sepsis import mimic_sofa_components, score_variants
 
+    t0 = time.time()
     stays = load_stays(MIMIC_DIR)
     ids = stays["stay_id"].astype(int).values
     hadm_pos = mimic_sepsis_hadm_ids(MIMIC_DIR)
     icd = np.array([1 if int(h) in hadm_pos else 0
                     for h in stays["hadm_id"].astype(int).values])
+    if verbose:
+        print(f"  cohort+ICD read in {time.time() - t0:.1f}s "
+              f"({len(ids)} stays)", flush=True)
 
-    sofa = {}
-    for label, mode, pre, post in SOFA_VARIANTS:
-        m, _ = mimic_sofa_sepsis_labels(MIMIC_DIR, stays, mode=mode,
-                                        pre_h=pre, post_h=post)
-        sofa[label] = np.array([int(m.get(int(i), 0)) for i in ids])
+    t1 = time.time()
+    suspicion, C_by, stay_ids, infected, _ = mimic_sofa_components(MIMIC_DIR, stays)
+    if verbose:
+        print(f"  SOFA components read in {time.time() - t1:.1f}s "
+              f"({len(infected)} suspected-infection stays)", flush=True)
+
+    t2 = time.time()
+    scored = score_variants(suspicion, C_by, stay_ids, SOFA_VARIANTS)
+    sofa = {label: np.array([int(m.get(int(i), 0)) for i in ids])
+            for label, m in scored.items()}
+    if verbose:
+        print(f"  {len(SOFA_VARIANTS)} variants scored in "
+              f"{time.time() - t2:.1f}s (single read)", flush=True)
     return ids, icd, sofa
 
 
-def eicu_labels():
-    """(ids, icd, {variant label: sofa array}) over the eICU cohort."""
+def eicu_labels(verbose=False):
+    """(ids, icd, {variant label: sofa array}) over the eICU cohort.
+
+    Single read, all variants scored from it -- see mimic_labels.
+    """
+    import time
     from config import EICU_DIR
     from src.data.sepsis import eicu_sepsis_stay_ids
-    from src.data.sofa_sepsis import eicu_sofa_sepsis_labels
+    from src.data.sofa_sepsis import eicu_sofa_components, score_variants
 
+    t0 = time.time()
     pats = pd.read_csv(os.path.join(EICU_DIR, "patient.csv.gz"),
                        usecols=["patientunitstayid", "unitdischargeoffset"],
                        encoding_errors="replace")
@@ -85,12 +109,23 @@ def eicu_labels():
     ids = pats["patientunitstayid"].astype(int).values
     pos = eicu_sepsis_stay_ids(EICU_DIR)
     icd = np.array([1 if i in pos else 0 for i in ids])
+    if verbose:
+        print(f"  cohort+ICD read in {time.time() - t0:.1f}s "
+              f"({len(ids)} stays)", flush=True)
 
-    sofa = {}
-    for label, mode, pre, post in SOFA_VARIANTS:
-        m, _ = eicu_sofa_sepsis_labels(EICU_DIR, pats, mode=mode,
-                                       pre_h=pre, post_h=post)
-        sofa[label] = np.array([int(m.get(int(i), 0)) for i in ids])
+    t1 = time.time()
+    suspicion, C_by, pid_set, infected, _ = eicu_sofa_components(EICU_DIR, pats)
+    if verbose:
+        print(f"  SOFA components read in {time.time() - t1:.1f}s "
+              f"({len(infected)} suspected-infection stays)", flush=True)
+
+    t2 = time.time()
+    scored = score_variants(suspicion, C_by, pid_set, SOFA_VARIANTS)
+    sofa = {label: np.array([int(m.get(int(i), 0)) for i in ids])
+            for label, m in scored.items()}
+    if verbose:
+        print(f"  {len(SOFA_VARIANTS)} variants scored in "
+              f"{time.time() - t2:.1f}s (single read)", flush=True)
     return ids, icd, sofa
 
 
@@ -129,13 +164,13 @@ def main():
     print("=" * 78, flush=True)
 
     print("\nlabelling MIMIC-IV demo ...", flush=True)
-    m_ids, m_icd, m_sofa = mimic_labels()
+    m_ids, m_icd, m_sofa = mimic_labels(verbose=True)
     print(f"  cohort n={len(m_ids)}  ICD prevalence={m_icd.mean():.3f}")
     for k, v in m_sofa.items():
         print(f"    {k:<22} prevalence={v.mean():.3f}")
 
     print("\nlabelling eICU ...", flush=True)
-    e_ids, e_icd, e_sofa = eicu_labels()
+    e_ids, e_icd, e_sofa = eicu_labels(verbose=True)
     print(f"  cohort n={len(e_ids)}  ICD prevalence={e_icd.mean():.3f}")
     for k, v in e_sofa.items():
         print(f"    {k:<22} prevalence={v.mean():.3f}")

@@ -294,6 +294,53 @@ def _hours_since(times, intime):
     return (pd.to_datetime(times) - intime).dt.total_seconds().values / 3600.0
 
 
+def mimic_sofa_components(data_path, stays_df):
+    """Read MIMIC once and return the material every SOFA variant needs.
+
+    Split out so a study comparing several suspicion windows pays the I/O ONCE.
+    At demo scale the redundancy was free; on full MIMIC-IV the event tables are
+    hundreds of millions of rows, and scoring four variants through the public
+    labeller would re-read them four times.
+
+    Returns (suspicion, C_by_stay, stay_ids, infected, observed).
+    """
+    stays = stays_df.copy()
+    stays["intime"] = pd.to_datetime(stays["intime"])
+    stay_ids = set(stays["stay_id"].astype(int))
+    intime = stays.set_index("stay_id")["intime"].to_dict()
+    hadm_to_stay = (stays.dropna(subset=["hadm_id"]).set_index("hadm_id")["stay_id"]
+                    .astype(int).to_dict())
+
+    suspicion = _mimic_suspicion(data_path, stays, hadm_to_stay, intime)
+    infected = set(suspicion)
+
+    C_by_stay = {sid: {k: (np.array([]), np.array([])) for k in
+                       ["creatinine", "bilirubin", "platelets", "fio2", "pao2",
+                        "gcs", "map", "urine"]} | {"vaso": (np.array([]), np.array([]))}
+                 for sid in infected}
+    observed = {k: set() for k in
+                ["creatinine", "bilirubin", "platelets", "fio2", "pao2", "gcs",
+                 "map", "urine", "vaso"]}
+    if infected:
+        _mimic_fill_components(data_path, stays, infected, hadm_to_stay, intime,
+                               C_by_stay, observed)
+    return suspicion, C_by_stay, stay_ids, infected, observed
+
+
+def score_variants(suspicion, C_by_stay, stay_ids, variants):
+    """Score several (label, mode, pre_h, post_h) settings from ONE read.
+
+    `variants` is an iterable of (label, mode, pre_h, post_h). Returns
+    {label: labels_dict}.
+    """
+    out = {}
+    for label, mode, pre, post in variants:
+        labels, _, _, _ = _score_stays(suspicion, C_by_stay, stay_ids,
+                                       mode=mode, pre_h=pre, post_h=post)
+        out[label] = dict(labels)
+    return out
+
+
 def mimic_sofa_sepsis_labels(data_path, stays_df, mode="window",
                              pre_h=SOFA_WINDOW_PRE_H, post_h=SOFA_WINDOW_POST_H):
     """Per-stay Sepsis-3 labels for MIMIC-IV.
@@ -473,6 +520,28 @@ def _mimic_fill_components(data_path, stays, infected, hadm_to_stay, intime,
 # ── eICU end-to-end labeler ──────────────────────────────────────────────────
 def _eicu_offset_hours(offset_min):
     return pd.to_numeric(offset_min, errors="coerce").values / 60.0
+
+
+def eicu_sofa_components(data_path, patients_df):
+    """Read eICU once and return what every SOFA variant needs.
+
+    Same rationale as mimic_sofa_components: on full eICU-CRD the component
+    tables are very large, and scoring four suspicion windows through the
+    public labeller would re-read them four times.
+
+    Returns (suspicion, C_by, pid_set, infected, observed).
+    """
+    pid_set = set(patients_df["patientunitstayid"].astype(int))
+    suspicion = _eicu_suspicion(data_path, pid_set)
+    infected = set(suspicion)
+    keys = ["creatinine", "bilirubin", "platelets", "fio2", "pao2", "gcs",
+            "map", "urine"]
+    C_by = {pid: {k: (np.array([]), np.array([])) for k in keys}
+                 | {"vaso": (np.array([]), np.array([]))} for pid in infected}
+    observed = {k: set() for k in keys + ["vaso"]}
+    if infected:
+        _eicu_fill_components(data_path, infected, C_by, observed)
+    return suspicion, C_by, pid_set, infected, observed
 
 
 def eicu_sofa_sepsis_labels(data_path, patients_df, mode="window",

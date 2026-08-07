@@ -120,7 +120,7 @@ def main():
     out = {}
 
     print("\nlabelling MIMIC-IV demo ...", flush=True)
-    m_ids, m_icd, m_sofa = mimic_labels()
+    m_ids, m_icd, m_sofa = mimic_labels(verbose=True)
     base = "SOFA win[-48,+24]"
     for label in ("SOFA single-point", "SOFA win[-24,+12]", "SOFA win[-72,+24]"):
         out[f"MIMIC {base} vs {label}"] = report(
@@ -131,7 +131,7 @@ def main():
         KAPPA_FLAG, args.iters, args.seed)
 
     print("\nlabelling eICU ...", flush=True)
-    e_ids, e_icd, e_sofa = eicu_labels()
+    e_ids, e_icd, e_sofa = eicu_labels(verbose=True)
     for label in ("SOFA single-point", "SOFA win[-24,+12]", "SOFA win[-72,+24]"):
         out[f"eICU {base} vs {label}"] = report(
             f"eICU control: {base} vs {label}", e_sofa[base], e_sofa[label],
