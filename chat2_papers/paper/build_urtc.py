@@ -198,7 +198,8 @@ A(para(
 A(para(
     "This paper asks that question directly: how reliable is conventional source-domain validation "
     "for model selection under real hospital distribution shift, and is there a practical alternative "
-    "that requires no target labels?"))
+    "that requires no target labels? Answering it requires genuine rather than simulated shift, and a "
+    "hyperparameter whose choice demonstrably changes deployment performance."))
 A(para(
     "We answer it through a concrete experimental framework. Physiology-Constrained Learning (PCL) "
     "augments masked-prediction pretraining of a clinical time-series transformer with differentiable "
@@ -212,7 +213,8 @@ A(para(
     "selection problem, because the third confound, choosing the constraint weight on "
     "out-of-distribution data, is a confound only if the legitimate alternative works."))
 A(para(
-    "It does not. Our contributions answer the central question in order. First, we show that "
+    "That alternative proves unreliable. Our contributions answer the central question in order. "
+    "First, we show that "
     "conventional source-domain validation is unreliable for model selection under hospital "
     "distribution shift: across a constraint-weight sweep on three real hospital systems, source "
     "validation AUROC varied by roughly one point while target AUROC varied by eleven, and the "
@@ -273,10 +275,9 @@ A(para("Study Design and Cohorts", "Heading2"))
 A(para(
     "The separation between sites is strict: every training and selection decision is made on "
     "PhysioNet Site A, no target-site data is used during training whether labeled or unlabeled, and "
-    "target labels are touched only when reporting final numbers."))
-A(para(
-    "Table I summarizes the cohorts. Sepsis prevalence differs substantially across systems, which "
-    "is itself part of the shift being studied."))
+    "target labels are touched only when reporting final numbers. Table I summarizes the resulting "
+    "cohorts. Sepsis prevalence differs substantially across systems, which is itself part of the "
+    "shift being studied."))
 A(para("Evaluation cohorts after filtering to adult stays of at least 24 hours.", "tablehead"))
 A(table([
     ["Cohort", "Stays", "Sepsis+", "Role"],
@@ -396,7 +397,7 @@ A(para(
     "about which configuration will deploy well. In this seed source validation selects the "
     "unconstrained model, which is the weakest configuration at every external site, while the best "
     "available weight (0.5) is one validation would rank fifth of six."))
-A(figure("rIdFig1", "ValidationGap"))
+A(figure("rIdFig1", "ValidationGap", 0.86))
 A(para(
     "The validation-target disconnect. Each point is one (constraint weight, target site) pair: "
     "horizontal position is that configuration’s source-hospital validation AUROC, vertical position "
@@ -499,28 +500,25 @@ A(para(
 
 A(para("Practical Recommendation", "Heading2"))
 A(para(
-    "The procedure we would recommend is deliberately unglamorous. Train the candidate "
-    "configurations as usual. Before deployment, collect unlabeled data from the target hospital, "
-    "which requires no annotation effort and no clinical review, and run one forward pass per "
-    "candidate to obtain its masked-reconstruction error on that data. Select the configuration with "
-    "the lowest error. The cost is a single inference pass per candidate, no additional parameters, "
-    "and no target labels, and in our experiments it recovered roughly three quarters of the gap "
-    "between standard practice and oracle selection."))
+    "The procedure we would recommend is deliberately unglamorous. Train the candidate configurations "
+    "as usual; before deployment, collect unlabeled data from the target hospital, run one forward "
+    "pass per candidate to obtain its masked-reconstruction error on that data, and select the "
+    "configuration with the lowest error. The cost is a single inference pass per candidate, no "
+    "additional parameters, and no target labels, and in our experiments it recovered roughly three "
+    "quarters of the gap between standard practice and oracle selection."))
 A(para(
     "Adoption depends on when unlabeled target data is available, and the requirement is mild: input "
     "channels only, for a modest number of historical stays, with no outcome ascertainment, no chart "
     "review, and no labeling. Any hospital preparing to deploy a model already holds such data, and "
-    "holds it at the point in the timeline where the selection decision is made, which target AUROC "
-    "by definition is not."))
+    "holds it at the point in the timeline where the selection decision is made."))
 A(para(
     "Governance considerations are real but tractable. Patient-level data frequently cannot leave the "
     "institution, and the procedure does not require that it does: the computation is forward passes "
-    "only, so candidate models can be shipped to the hospital and one scalar per candidate returned, "
-    "with no patient-level data crossing the boundary. What is still required is an agreement "
-    "permitting on-site execution, and attention to the fact that a returned scalar is a statistic of "
-    "protected data, however weak. Where even that is not permitted before contracting, the criterion "
-    "cannot be applied, and our results indicate the fallback should be treated as providing no "
-    "information rather than a weak signal."))
+    "only, so candidate models can be shipped to the hospital and one scalar per candidate returned. "
+    "What is still required is an agreement permitting on-site execution, and attention to the fact "
+    "that a returned scalar remains a statistic of protected data. Where even that is not permitted "
+    "before contracting, the criterion cannot be applied, and our results indicate the fallback "
+    "should be treated as providing no information rather than a weak signal."))
 
 # ── V. Discussion and future work ────────────────────────────────────────────
 A(para("Discussion and Future Work", "Heading1"))
@@ -561,8 +559,7 @@ A(para(
 A(para("Acknowledgment", "Heading5"))
 A(para(
     "The authors thank the PhysioNet team and the MIMIC-IV and eICU-CRD Collaborative Research "
-    "Database maintainers for curating and providing access to the credentialed datasets used "
-    "in this study."))
+    "Database maintainers for curating and providing access to the credentialed datasets used here."))
 
 # ── References ───────────────────────────────────────────────────────────────
 # Ordered by first appearance in the text, per IEEE style. If a citation is
