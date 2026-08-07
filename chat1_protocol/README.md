@@ -116,6 +116,41 @@ leakage levels within a seed, so its own fill proportion cancels exactly in the
 paired difference — the limitation is about what a detection MEANS, not about
 the validity of the measurement.
 
+## Finding: diagnostics need an explicit UNDECIDABLE state
+
+State this as a contribution in its own right, alongside the aggregation-
+granularity finding — not as a lesson learned in passing.
+
+**A diagnostic that has no undecidable state will eventually report false
+cleanliness.** When a check cannot reach a judgement — the metric is undefined,
+the pattern it looks for is absent, the control is too easy to fail — that
+outcome silently becomes "no confound found" and is then counted as evidence of
+specificity. The absence of a detection gets scored as a detection of absence.
+
+This occurred FOUR times, independently, in five different pieces of code in
+this project alone:
+
+1. **check 1's negative control** passed the same audit array as both arguments
+   to Cohen's kappa. The result was 1.0 by construction, and TN=2 measured
+   arithmetic rather than the detector.
+2. **detector 1's suspicion-window controls** sit at kappa 0.93-1.00 —
+   near-ceiling, so they would pass almost any detector. Reported bare, TN=3
+   implies three tests when only one discriminates.
+3. **detector 3's INDETERMINATE** on third-party repositories. Folding it into
+   TN would have produced TN=3 from files the detector never analysed at all.
+4. **Task 5's train_test_gap**: a seed whose in-domain AUROC was undefined made
+   `nan > threshold` evaluate False, and the abstention was scored as a correct
+   silence — handing the baseline a perfect TP=3 FP=0 FN=0 TN=1 that would have
+   contradicted this paper's own headline comparison.
+
+Four occurrences across independent code is not coincidence. It is evidence that
+this failure mode is structurally common in ad hoc evaluation code, because the
+natural Python idiom for "did not detect" and for "could not tell" is the same
+falsy value. The fix is cheap and mechanical: every check returns a decidability
+flag alongside its verdict, and undecidable cases are excluded from the
+confusion matrix and reported in their own column rather than defaulting to
+either class.
+
 ## Task 5 — what standard practice catches (rebootpcl/baselines_n2400.out)
 
 Three standard checks against detector 2's leakage injection, 3 seeds,
@@ -156,6 +191,14 @@ split with one class), `nan > threshold` evaluated False, and the abstention was
 scored as a correct silence. Baseline checks now return (flagged, decidable) and
 an undefined metric is excluded as UNDECIDABLE rather than counted silent — the
 same discipline as detector 3's INDETERMINATE.
+
+SCOPE OF THE BASELINE COMPARISON — state this explicitly in the paper so the
+omission does not read as an oversight: baseline comparison was run against
+detector 2's leakage scenario; detector 5's confound is not a
+performance-degradation quantity and was not in scope for this comparison.
+Detector 5's confound is composition/missingness explaining a cross-site gap in
+an aggregate violation score, which these three performance-based checks cannot
+address without a different design.
 
 ## Notes that matter
 * `data/` is a Windows directory JUNCTION to `../data`. Do NOT `rm -rf` it —
