@@ -116,6 +116,47 @@ leakage levels within a seed, so its own fill proportion cancels exactly in the
 paired difference — the limitation is about what a detection MEANS, not about
 the validity of the measurement.
 
+## Task 5 — what standard practice catches (rebootpcl/baselines_n2400.out)
+
+Three standard checks against detector 2's leakage injection, 3 seeds,
+2400 stays/site, scored the same TP/FP/FN/TN way as the detectors:
+
+    leakage   kfold sd   in-domain    target      gap
+        0%     0.0789      0.7827    0.6654   0.1173
+        5%     0.0789      0.7818    0.6715   0.1103
+       20%     0.0795      0.7810    0.6704   0.1106
+      100%     0.0804      0.7793    0.6762   0.1031
+
+    external_floor        TP=3 FP=1 FN=0 TN=0   prec 0.75  rec 1.00  FPR 1.00
+    kfold_cv_instability  TP=3 FP=1 FN=0 TN=0   prec 0.75  rec 1.00  FPR 1.00
+    train_test_gap        TP=3 FP=1 FN=0 TN=0   prec 0.75  rec 1.00  FPR 1.00
+    detector 2            TP=3 FP=0 FN=0 TN=1   prec 1.00  rec 1.00  FPR 0.00
+
+DO NOT report the baselines' recall of 1.00 as competence. All three fire at
+EVERY level INCLUDING 0% leakage: FPR is 1.00 and TN is 0. A check that always
+fires has recall 1.00 by construction and carries no information. Precision 0.75
+is just 3 positives out of 4 cases.
+
+The directional prediction HELD but its MECHANISM DID NOT, and the paper must
+state the measured version, not the predicted one. Cross-site AUROC did rise
+with leakage (+0.0061, +0.0050, +0.0108) and the in-domain/cross-site gap did
+shrink (0.1173 -> 0.1031), so leakage does make cross-site performance look
+better. But the baselines do not therefore "stay silent when the confound is
+worst" — they fire indiscriminately. The reason they are useless is that the
+ordinary source-to-target domain gap (0.117 at ZERO leakage) is an order of
+magnitude larger than the leakage-induced change (~0.01), so the confound is
+buried under the baseline domain shift. The argument for purpose-built detectors
+is signal-to-nuisance, not direction: detector 2's probe loss moves -3.1% /
+-9.0% / -15.6% with a clean 0% control, while the same confound moves downstream
+AUROC by about 0.01 against a 0.12 nuisance.
+
+An earlier run at 900 stays/site gave train_test_gap a perfect TP=3 FP=0 FN=0
+TN=1. That was an artifact: one seed's in-domain AUROC was undefined (a held-out
+split with one class), `nan > threshold` evaluated False, and the abstention was
+scored as a correct silence. Baseline checks now return (flagged, decidable) and
+an undefined metric is excluded as UNDECIDABLE rather than counted silent — the
+same discipline as detector 3's INDETERMINATE.
+
 ## Notes that matter
 * `data/` is a Windows directory JUNCTION to `../data`. Do NOT `rm -rf` it —
   that can delete the real 455MB dataset. Remove with `cmd //c rmdir` instead.

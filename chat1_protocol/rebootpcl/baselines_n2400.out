@@ -1,0 +1,58 @@
+==============================================================================
+TASK 5 — standard checks vs purpose-built detectors
+==============================================================================
+scenario: detector 2's pretraining leakage, injection-based ground truth | 3 seeds
+
+C:\Users\nikhi\Codes\pclCodebase\chat1_protocol\src\models\backbone.py:90: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
+  self.encoder = nn.TransformerEncoder(encoder_layer, num_layers=n_layers)
+C:\Users\nikhi\Codes\pclCodebase\chat1_protocol\src\models\backbone.py:90: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
+  self.encoder = nn.TransformerEncoder(encoder_layer, num_layers=n_layers)
+C:\Users\nikhi\Codes\pclCodebase\chat1_protocol\src\models\backbone.py:90: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
+  self.encoder = nn.TransformerEncoder(encoder_layer, num_layers=n_layers)
+C:\Users\nikhi\Codes\pclCodebase\chat1_protocol\src\models\backbone.py:90: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
+  self.encoder = nn.TransformerEncoder(encoder_layer, num_layers=n_layers)
+  seed 42 done
+C:\Users\nikhi\Codes\pclCodebase\chat1_protocol\src\models\backbone.py:90: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
+  self.encoder = nn.TransformerEncoder(encoder_layer, num_layers=n_layers)
+C:\Users\nikhi\Codes\pclCodebase\chat1_protocol\src\models\backbone.py:90: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
+  self.encoder = nn.TransformerEncoder(encoder_layer, num_layers=n_layers)
+C:\Users\nikhi\Codes\pclCodebase\chat1_protocol\src\models\backbone.py:90: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
+  self.encoder = nn.TransformerEncoder(encoder_layer, num_layers=n_layers)
+C:\Users\nikhi\Codes\pclCodebase\chat1_protocol\src\models\backbone.py:90: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
+  self.encoder = nn.TransformerEncoder(encoder_layer, num_layers=n_layers)
+  seed 43 done
+C:\Users\nikhi\Codes\pclCodebase\chat1_protocol\src\models\backbone.py:90: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
+  self.encoder = nn.TransformerEncoder(encoder_layer, num_layers=n_layers)
+C:\Users\nikhi\Codes\pclCodebase\chat1_protocol\src\models\backbone.py:90: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
+  self.encoder = nn.TransformerEncoder(encoder_layer, num_layers=n_layers)
+C:\Users\nikhi\Codes\pclCodebase\chat1_protocol\src\models\backbone.py:90: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
+  self.encoder = nn.TransformerEncoder(encoder_layer, num_layers=n_layers)
+C:\Users\nikhi\Codes\pclCodebase\chat1_protocol\src\models\backbone.py:90: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
+  self.encoder = nn.TransformerEncoder(encoder_layer, num_layers=n_layers)
+  seed 44 done
+
+  leakage   kfold sd   in-domain    target      gap
+       0%     0.0789      0.7827    0.6654   0.1173
+       5%     0.0789      0.7818    0.6715   0.1103
+      20%     0.0795      0.7810    0.6704   0.1106
+     100%     0.0804      0.7793    0.6762   0.1031
+
+------------------------------------------------------------------------------
+BASELINE VERDICTS (expected: flag whenever leakage > 0)
+  external_floor              TP=3  FP=1  FN=0  TN=0  prec=0.75 rec=1.00 fpr=1.00
+      0%:FLAG  5%:FLAG  20%:FLAG  100%:FLAG
+  kfold_cv_instability        TP=3  FP=1  FN=0  TN=0  prec=0.75 rec=1.00 fpr=1.00
+      0%:FLAG  5%:FLAG  20%:FLAG  100%:FLAG
+  train_test_gap              TP=3  FP=1  FN=0  TN=0  prec=0.75 rec=1.00 fpr=1.00
+      0%:FLAG  5%:FLAG  20%:FLAG  100%:FLAG
+
+  detector 2 (for comparison) TP=3  FP=0  FN=0  TN=1  prec=1.00 rec=1.00 fpr=0.00
+
+==============================================================================
+DIRECTIONAL HYPOTHESIS — did cross-site AUROC IMPROVE with leakage?
+==============================================================================
+  leakage   5%: target AUROC 0.6715 vs 0.6654 at 0%  (delta +0.0061) IMPROVED
+  leakage  20%: target AUROC 0.6704 vs 0.6654 at 0%  (delta +0.0050) IMPROVED
+  leakage 100%: target AUROC 0.6762 vs 0.6654 at 0%  (delta +0.0108) IMPROVED
+
+Hypothesis HELD at every level: leakage made cross-site performance look BETTER, so a degradation-triggered check has nothing to fire on.
