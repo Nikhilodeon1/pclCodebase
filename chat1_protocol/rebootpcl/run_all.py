@@ -24,7 +24,12 @@ from rebootpcl.harness import confusion, fmt_matrix, fmt_uncertainty
 #   check2  rebootpcl/check2_5seed.out      (paired rel. delta at the 5% floor)
 #   check5  rebootpcl/check5_sampling.out   (flag rate across random samples)
 UNCERTAINTY = {
-    1: {"ci_lo": 0.528, "ci_hi": 0.776, "p_would_flag": 0.216},
+    # Full-scale (MIMIC-IV 3.1, n=74,829) at the detector's OPERATING POINT --
+    # repeated 500-patient audit draws, not the whole cohort. The thinnest
+    # legitimate-variation control, which is the number that matters for this
+    # row. Demo-scale was [0.528, 0.776] P(flag)=0.216 at n=117; more data made
+    # it worse, not better.
+    1: {"ci_lo": 0.539, "ci_hi": 0.663, "p_would_flag": 0.484},
     2: {"mean": -0.031, "sd": 0.018},
     5: {"flag_rate": 0.4, "n": 5},
     3: None,

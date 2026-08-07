@@ -90,13 +90,52 @@ The near-ceiling framing also survives: the two window-WIDTH controls are still
 0.928 and 0.984 at full scale, so "TN=3 (1 discriminating, 2 non-discriminating)"
 was not a small-sample artifact either.
 
-PENDING: the bootstrap CI and P(flag) at full scale have NOT been computed — the
-run discarded its label arrays. `--save-labels` now caches them so the bootstrap
-is seconds rather than hours. Until that is run, the P(flag)=0.216 figure below
-is the DEMO-SCALE number and must be labelled as such.
+FULL-SCALE BOOTSTRAP (`rebootpcl/full1_bootstrap.out`, 5000 resamples).
+MIMIC n=74,829, eICU n=132,900. Two intervals per case: over the whole cohort,
+and over repeated draws of the 500-patient AUDIT SUBSET, which is what the
+detector actually scores and therefore what governs its verdict.
 
-DETECTOR 1 SPECIFICITY EXPOSURE (DEMO SCALE, n=117): on MIMIC the
-window-vs-single-point control
+    case                          kappa   cohort CI        audit-500 CI     P(flag)
+    MIMIC ctrl vs single-point    0.602   [0.597, 0.607]   [0.539, 0.663]    0.484
+    MIMIC ctrl vs win[-24,+12]    0.913   [0.910, 0.916]   [0.876, 0.948]    0.000
+    MIMIC ctrl vs win[-72,+24]    0.993   [0.992, 0.994]   [0.980, 1.000]    0.000
+    MIMIC POSITIVE ICD vs SOFA    0.174   [0.168, 0.179]   [0.104, 0.243]    1.000
+    eICU  ctrl vs single-point    0.826   [0.821, 0.831]   [0.737, 0.901]    0.000
+    eICU  ctrl vs win[-24,+12]    0.986   [0.984, 0.987]   [0.959, 1.000]    0.000
+    eICU  ctrl vs win[-72,+24]    1.000   [1.000, 1.000]   [1.000, 1.000]    0.000
+    eICU  POSITIVE ICD vs SOFA    0.451   [0.444, 0.458]   [0.334, 0.560]    0.996
+
+**DETECTOR 1'S HEADLINE LIMITATION, at full scale.** At the detector's own
+operating point the MIMIC window-vs-single-point control flags **48.4% of the
+time** — a coin flip. It is not a small-sample effect and it got WORSE with
+data, not better (demo P(flag)=0.216 at n=117). Report this number, not the
+demo one.
+
+The mechanism is sharper than "noisy": the full-cohort kappa is 0.602 with a CI
+of [0.597, 0.607]. The TRUE agreement between two valid Sepsis-3
+operationalizations sits essentially exactly ON the 0.60 flag threshold. The
+detector cannot separate them because there is nothing to separate — the
+population value and the decision boundary coincide. Tightening the interval
+with more data cannot fix that; it only measures the coincidence more precisely.
+
+DO NOT move KAPPA_FLAG to make this control pass. 0.60 is the conventional
+Landis-Koch "substantial agreement" boundary, chosen before any of this was
+measured; moving it after observing the failure is the same fitting error the
+detector 5 pre-registration exists to prevent.
+
+Consequence for the results table: detector 1's MIMIC TN=3 must NOT be reported
+bare. One of those three true negatives is a coin flip (P(flag)=0.484) and the
+other two are near-ceiling (P(flag)=0.000, kappa 0.913 and 0.993). Reporting
+"TN=3" implies three sound tests and there is arguably not one.
+
+Positives are unaffected and robust: both databases detect the ICD-vs-SOFA shift
+with P(flag) = 1.000 and 0.996 respectively.
+
+The demo-scale figures below are superseded and kept only for the
+demo-vs-full comparison.
+
+DETECTOR 1 SPECIFICITY EXPOSURE (DEMO SCALE, n=117 — SUPERSEDED, see above): on
+MIMIC the window-vs-single-point control
 gives kappa 0.651 against a 0.60 threshold. Bootstrapping over patients (5000
 resamples) gives 95% CI [0.528, 0.776] — the threshold is INSIDE the interval,
 and P(kappa <= 0.60) = 0.216. At n=117 that control is statistically
