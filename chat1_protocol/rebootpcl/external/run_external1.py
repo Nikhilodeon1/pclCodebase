@@ -156,9 +156,42 @@ def scenarios(db, ids, icd, sofa, seed=0, verbose=False):
     return out
 
 
+def save_labels(path, m, e):
+    """Persist the label arrays so downstream analyses skip re-labelling.
+
+    On full data the labelling pass costs hours (MIMIC components alone were
+    1358s); the bootstrap that consumes these arrays is seconds of numpy. There
+    is no reason to pay for the labels twice, and re-deriving them risks the two
+    analyses silently disagreeing if anything upstream changes.
+    """
+    (m_ids, m_icd, m_sofa), (e_ids, e_icd, e_sofa) = m, e
+    payload = {"mimic_ids": m_ids, "mimic_icd": m_icd,
+               "eicu_ids": e_ids, "eicu_icd": e_icd,
+               "variant_labels": np.array([v[0] for v in SOFA_VARIANTS])}
+    for i, (label, *_) in enumerate(SOFA_VARIANTS):
+        payload[f"mimic_sofa_{i}"] = m_sofa[label]
+        payload[f"eicu_sofa_{i}"] = e_sofa[label]
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    np.savez_compressed(path, **payload)
+    print(f"\nlabel arrays cached -> {path}")
+
+
+def load_labels(path):
+    """Inverse of save_labels. Returns ((ids, icd, sofa), (ids, icd, sofa))."""
+    z = np.load(path, allow_pickle=False)
+    labels = [str(x) for x in z["variant_labels"]]
+    m_sofa = {lab: z[f"mimic_sofa_{i}"] for i, lab in enumerate(labels)}
+    e_sofa = {lab: z[f"eicu_sofa_{i}"] for i, lab in enumerate(labels)}
+    return ((z["mimic_ids"], z["mimic_icd"], m_sofa),
+            (z["eicu_ids"], z["eicu_icd"], e_sofa))
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--save-labels", default=None,
+                    help="write label arrays here so the bootstrap can reuse "
+                         "them instead of re-labelling (hours on full data)")
     args = ap.parse_args()
 
     print("=" * 78)
@@ -177,6 +210,10 @@ def main():
     print(f"  cohort n={len(e_ids)}  ICD prevalence={e_icd.mean():.3f}")
     for k, v in e_sofa.items():
         print(f"    {k:<22} prevalence={v.mean():.3f}")
+
+    if args.save_labels:
+        save_labels(args.save_labels, (m_ids, m_icd, m_sofa),
+                    (e_ids, e_icd, e_sofa))
 
     cases = (scenarios("MIMIC", m_ids, m_icd, m_sofa, args.seed, verbose=True)
              + scenarios("eICU", e_ids, e_icd, e_sofa, args.seed, verbose=True))

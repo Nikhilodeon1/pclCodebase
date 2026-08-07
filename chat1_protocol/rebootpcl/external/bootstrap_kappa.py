@@ -108,9 +108,13 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--iters", type=int, default=5000)
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--labels", default=None,
+                    help="npz written by run_external1.py --save-labels; skips "
+                         "re-labelling, which costs hours on full data")
     args = ap.parse_args()
 
-    from rebootpcl.external.run_external1 import mimic_labels, eicu_labels
+    from rebootpcl.external.run_external1 import (mimic_labels, eicu_labels,
+                                                  load_labels)
 
     print("=" * 78)
     print("DETECTOR 1 — bootstrap CI on the control cases")
@@ -119,9 +123,15 @@ def main():
 
     out = {}
 
-    print(f"\nlabelling MIMIC-IV from "
-          f"{os.environ.get('MIMIC_DIR', '<config default>')} ...", flush=True)
-    m_ids, m_icd, m_sofa = mimic_labels(verbose=True)
+    if args.labels:
+        print(f"\nloading cached label arrays from {args.labels}", flush=True)
+        (m_ids, m_icd, m_sofa), (e_ids, e_icd, e_sofa) = load_labels(args.labels)
+        print(f"  MIMIC n={len(m_ids)}  eICU n={len(e_ids)}", flush=True)
+    else:
+        print(f"\nlabelling MIMIC-IV from "
+              f"{os.environ.get('MIMIC_DIR', '<config default>')} ...", flush=True)
+        m_ids, m_icd, m_sofa = mimic_labels(verbose=True)
+        e_ids = e_icd = e_sofa = None
     base = "SOFA win[-48,+24]"
     for label in ("SOFA single-point", "SOFA win[-24,+12]", "SOFA win[-72,+24]"):
         out[f"MIMIC {base} vs {label}"] = report(
@@ -131,8 +141,9 @@ def main():
         f"MIMIC positive: ICD vs {base}", m_icd, m_sofa[base],
         KAPPA_FLAG, args.iters, args.seed)
 
-    print("\nlabelling eICU ...", flush=True)
-    e_ids, e_icd, e_sofa = eicu_labels(verbose=True)
+    if e_sofa is None:
+        print("\nlabelling eICU ...", flush=True)
+        e_ids, e_icd, e_sofa = eicu_labels(verbose=True)
     for label in ("SOFA single-point", "SOFA win[-24,+12]", "SOFA win[-72,+24]"):
         out[f"eICU {base} vs {label}"] = report(
             f"eICU control: {base} vs {label}", e_sofa[base], e_sofa[label],
