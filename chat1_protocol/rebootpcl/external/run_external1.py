@@ -3,7 +3,9 @@
 Detector 1's diagnostic is a within-audit-subset Cohen's kappa between two
 labelling criteria scored on the SAME patients. "External" therefore means
 running that diagnostic on a database it was not built against: it was developed
-on eICU, so MIMIC-IV demo is the external case.
+on eICU, so MIMIC-IV is the external case. Which MIMIC-IV -- the
+100-patient demo or the full extract -- depends on MIMIC_DIR, and the cohort
+size is printed so a log can never be mistaken for the wrong one.
 
 The negative side is the point of this run. Detector 1 previously had exactly ONE
 clean control (SOFA window-mode vs single-mode), and a single passing control is
@@ -160,10 +162,11 @@ def main():
     args = ap.parse_args()
 
     print("=" * 78)
-    print("DETECTOR 1 — external validation (MIMIC-IV demo) + broadened controls")
+    print("DETECTOR 1 — external validation (MIMIC-IV) + broadened controls")
     print("=" * 78, flush=True)
 
-    print("\nlabelling MIMIC-IV demo ...", flush=True)
+    print(f"\nlabelling MIMIC-IV from "
+          f"{os.environ.get('MIMIC_DIR', '<config default>')} ...", flush=True)
     m_ids, m_icd, m_sofa = mimic_labels(verbose=True)
     print(f"  cohort n={len(m_ids)}  ICD prevalence={m_icd.mean():.3f}")
     for k, v in m_sofa.items():

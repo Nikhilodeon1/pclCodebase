@@ -1,6 +1,6 @@
 """Bootstrap confidence intervals for detector 1's kappa on its control cases.
 
-Motivation: on MIMIC-IV demo the window-vs-single-point control gives kappa
+Motivation: on the MIMIC-IV DEMO (117 stays) the window-vs-single-point control gives kappa
 0.651 against a 0.60 flag threshold -- a margin of 0.051 on an audit subset of
 only 117 patients. "Wide CI, so more concerning" is not a usable statement. If
 0.60 falls INSIDE the interval, the control is statistically indistinguishable
@@ -119,7 +119,8 @@ def main():
 
     out = {}
 
-    print("\nlabelling MIMIC-IV demo ...", flush=True)
+    print(f"\nlabelling MIMIC-IV from "
+          f"{os.environ.get('MIMIC_DIR', '<config default>')} ...", flush=True)
     m_ids, m_icd, m_sofa = mimic_labels(verbose=True)
     base = "SOFA win[-48,+24]"
     for label in ("SOFA single-point", "SOFA win[-24,+12]", "SOFA win[-72,+24]"):
