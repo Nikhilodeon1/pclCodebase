@@ -57,7 +57,46 @@ suspicion-window WIDTH controls sit at kappa 0.93-1.00 and would pass almost
 anything; only window-vs-single-point discriminates. A genuinely hard control
 must vary the infection-suspicion criteria, not the window width.
 
-DETECTOR 1 SPECIFICITY EXPOSURE: on MIMIC the window-vs-single-point control
+FULL-SCALE RE-RUN (2026-08-06, RunPod, `rebootpcl/full1_probe.out` on the pod's
+/workspace volume). Full MIMIC-IV 3.1 and full eICU-CRD 2.0, same code, same
+PCL_TEST_MODE=1, only the data changed:
+
+    MIMIC-IV FULL: 74,829 stays (demo: 117), 44,808 with suspected infection
+      cohort+ICD read 8.1s | SOFA components read 1357.6s | 4 variants scored
+      from ONE read
+
+    case                                      demo      FULL
+    MIMIC positive ICD vs SOFA win[-48,+24]   0.150     0.204   flags, PASS
+    MIMIC negative vs SOFA single-point       0.651     0.634   clean, PASS
+    MIMIC negative vs SOFA win[-24,+12]       0.931     0.928   clean, PASS
+    MIMIC negative vs SOFA win[-72,+24]       1.000     0.984   clean, PASS
+    eICU  positive ICD vs SOFA win[-48,+24]   0.467     0.514   flags, PASS
+    eICU  negative vs SOFA single-point       0.771     0.869   clean, PASS
+    eICU  negative vs SOFA win[-24,+12]       0.979     0.990   clean, PASS
+    eICU  negative vs SOFA win[-72,+24]       1.000     1.000   clean, PASS
+
+    check1 EXTERNAL (MIMIC)  TP=1 FP=0 FN=0 TN=3   (unchanged from demo)
+    check1 eICU              TP=1 FP=0 FN=0 TN=3   (unchanged from demo)
+
+THE NEAR-MISS IS NOT A SMALL-SAMPLE ARTIFACT. At 640x the cohort the MIMIC
+window-vs-single-point control moved TOWARD the threshold, not away: kappa 0.651
+-> 0.634, margin 0.051 -> 0.034. Do not describe this limitation as "an artifact
+of the 117-stay demo" — that hypothesis was tested at full scale and rejected.
+MIMIC's window-vs-single-point disagreement is genuinely that large. The
+exposure is MIMIC-SPECIFIC, not size-specific: eICU's equivalent control moved
+AWAY from danger (0.771 -> 0.869) on the same run.
+
+The near-ceiling framing also survives: the two window-WIDTH controls are still
+0.928 and 0.984 at full scale, so "TN=3 (1 discriminating, 2 non-discriminating)"
+was not a small-sample artifact either.
+
+PENDING: the bootstrap CI and P(flag) at full scale have NOT been computed — the
+run discarded its label arrays. `--save-labels` now caches them so the bootstrap
+is seconds rather than hours. Until that is run, the P(flag)=0.216 figure below
+is the DEMO-SCALE number and must be labelled as such.
+
+DETECTOR 1 SPECIFICITY EXPOSURE (DEMO SCALE, n=117): on MIMIC the
+window-vs-single-point control
 gives kappa 0.651 against a 0.60 threshold. Bootstrapping over patients (5000
 resamples) gives 95% CI [0.528, 0.776] — the threshold is INSIDE the interval,
 and P(kappa <= 0.60) = 0.216. At n=117 that control is statistically

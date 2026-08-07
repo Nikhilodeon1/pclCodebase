@@ -3,6 +3,52 @@
 Deferred deliberately. Each says why it is not urgent and what breaks if it is
 forgotten.
 
+## 0. NEXT POD SESSION — exact commands (full-scale, resumes 2026-08-06)
+
+State: full-scale detector 1 ran and PASSED (see README's full-scale block).
+Its label arrays were NOT cached, so the bootstrap CI is still demo-scale.
+`--save-labels` now exists so this is the last time labelling is paid for.
+
+Pod: RunPod, 8-core/32GB, ~$0.32/h. NO GPU — nothing here trains anything
+bigger than a 0.3M-param model. /workspace is a network volume and persists
+across pod shutdown, so write outputs there, never to container-local paths.
+
+    # from the laptop
+    git push origin main
+
+    # on the pod
+    cd /workspace/pclCodebase && git pull origin main && cd chat1_protocol
+    export MIMIC_DIR=/workspace/physionet.org/files/mimiciv/3.1
+    export EICU_DIR=/workspace/physionet.org/files/eicu-crd/2.0
+    export PHYSIONET_DIR=/workspace/physionet2019
+    export PCL_TEST_MODE=1
+
+    # ~2-4h. Caches labels so nothing after this needs the raw data again.
+    nohup python rebootpcl/external/run_external1.py \
+        --save-labels rebootpcl/results/full_labels.npz \
+        > rebootpcl/full1_final.out 2>&1 &
+
+    # seconds, once the above finishes
+    python rebootpcl/external/bootstrap_kappa.py \
+        --labels rebootpcl/results/full_labels.npz --iters 5000 \
+        > rebootpcl/full1_bootstrap.out 2>&1
+
+Then COPY `rebootpcl/results/full_labels.npz` off the pod and commit it — it is
+small (label arrays only) and makes every future detector 1 analysis free.
+
+PCL_TEST_MODE stays 1 deliberately: it does not subset this task's data
+(`load_stays` reads all of icustays.csv.gz) but it holds the model at
+d=64/2-layer, so demo and full-scale rows stay comparable.
+
+Unverified: `/workspace/physionet2019` was never confirmed to exist. Detector 1
+does not need it; detector 5's regression guard (Task B) does. Check before
+starting Task B.
+
+Task B (detectors 5 and 2 at full scale) and Task C are NOT started. Detector 5
+loads full eICU through a heavier path than detector 1 — budget several hours
+and watch RSS, since eICU's vitalPeriodic is ~146M rows / ~35GB uncompressed.
+Priority is now low: detector 1 was the open risk and it is answered.
+
 ## 1. CLAUDE.md's preprocessing description does not match the code
 
 **Status:** filed, not fixed. Low priority relative to remaining detector work.
