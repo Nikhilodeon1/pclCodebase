@@ -79,20 +79,50 @@ def descriptive_e3(eicu, mimic, rule, verbose=False):
     return flagged, st
 
 
+def save_arrays(path, eicu, mimic):
+    """Cache the loaded raw_ts arrays.
+
+    Wired in BEFORE the first full-scale launch, not after discovering it was
+    needed -- that mistake cost detector 1 a repeated multi-hour labelling pass.
+    Loading full eICU alone means parsing ~146M rows of vitalPeriodic.
+    """
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    np.savez_compressed(
+        path,
+        eicu=np.stack(eicu) if eicu else np.empty((0,)),
+        mimic=np.stack(mimic) if mimic else np.empty((0,)))
+    print(f"raw_ts arrays cached -> {path}", flush=True)
+
+
+def load_arrays(path):
+    z = np.load(path, allow_pickle=False)
+    return list(z["eicu"]), list(z["mimic"])
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--seeds", type=int, default=5)
     ap.add_argument("--physionet-n", type=int, default=800,
                     help="stays per arm for the E4 regression guard")
+    ap.add_argument("--save-arrays", default=None,
+                    help="cache loaded raw_ts here so reruns skip the load")
+    ap.add_argument("--arrays", default=None,
+                    help="reuse a cache written by --save-arrays")
     args = ap.parse_args()
     seeds = list(range(args.seeds))
 
     print("=" * 78)
     print("DETECTOR 5 — external validation (pre-registered)")
     print("=" * 78)
-    print("loading external sites ...", flush=True)
-    eicu = load_site("eicu")
-    mimic = load_site("mimic")
+    if args.arrays:
+        print(f"loading cached raw_ts from {args.arrays} ...", flush=True)
+        eicu, mimic = load_arrays(args.arrays)
+    else:
+        print("loading external sites ...", flush=True)
+        eicu = load_site("eicu")
+        mimic = load_site("mimic")
+        if args.save_arrays:
+            save_arrays(args.save_arrays, eicu, mimic)
     print(f"eICU {len(eicu)} stays | MIMIC-IV {len(mimic)} stays", flush=True)
     print(f"components: {EXTERNAL_KEYS} "
           "(oxygen term is Severinghaus, not the PhysioNet O2Sat-vs-SaO2 pair)")

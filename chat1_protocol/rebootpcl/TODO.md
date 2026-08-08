@@ -3,6 +3,19 @@
 Deferred deliberately. Each says why it is not urgent and what breaks if it is
 forgotten.
 
+## Methods note — verify asserted resources on the executing machine
+
+Not a paper finding; a working rule worth keeping. A task prompt stated we had
+credentialed access to full MIMIC-IV and eICU-CRD. That was true of the pod and
+false of the machine actually running the work, where only demos existed. Had it
+not been checked first, the run would have produced demo-scale numbers under a
+"full-scale" label — the exact class of silent mislabelling this project keeps
+catching elsewhere.
+
+Rule: when a prompt asserts a resource is available, verify the assertion holds
+in the environment that will execute, not in principle. Cheap, and it is the
+same discipline as checking a control is a measurement rather than an identity.
+
 ## 0. NEXT POD SESSION — exact commands (full-scale, resumes 2026-08-06)
 
 State: full-scale detector 1 ran and PASSED (see README's full-scale block).

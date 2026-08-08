@@ -123,10 +123,22 @@ Landis-Koch "substantial agreement" boundary, chosen before any of this was
 measured; moving it after observing the failure is the same fitting error the
 detector 5 pre-registration exists to prevent.
 
-Consequence for the results table: detector 1's MIMIC TN=3 must NOT be reported
-bare. One of those three true negatives is a coin flip (P(flag)=0.484) and the
-other two are near-ceiling (P(flag)=0.000, kappa 0.913 and 0.993). Reporting
-"TN=3" implies three sound tests and there is arguably not one.
+Consequence for the results table. "TN=3" must NEVER appear anywhere in the paper
+for MIMIC without this breakdown attached:
+
+    MIMIC TN=3  =  2 non-discriminating  +  1 coincidental
+
+    non-discriminating : win[-24,+12] kappa 0.913, win[-72,+24] kappa 0.993,
+                         both P(flag)=0.000 — near-ceiling controls that
+                         essentially nothing could fail
+    coincidental       : win-vs-single-point, population kappa 0.602 against a
+                         0.60 threshold, P(flag)=0.484 — NOT a clean negative.
+                         The verdict is close to arbitrary; it is scored TN
+                         because one draw happened to land above the boundary
+
+There is arguably not one sound true negative in MIMIC's TN=3 at full scale.
+This is not the earlier "1 discriminating, 2 non-discriminating" framing — full
+scale demoted the one discriminating control to a coin flip.
 
 Positives are unaffected and robust: both databases detect the ICD-vs-SOFA shift
 with P(flag) = 1.000 and 0.996 respectively.
@@ -193,6 +205,40 @@ cannot attribute detection to either alone. The probe slice is identical across
 leakage levels within a seed, so its own fill proportion cancels exactly in the
 paired difference — the limitation is about what a detection MEANS, not about
 the validity of the measurement.
+
+## Finding: a threshold can coincide with the population value it must separate
+
+State this in the DISCUSSION as a contribution, not folded into a limitations
+paragraph. Phrase it this plainly:
+
+**Conventional agreement thresholds can coincide with the true population-level
+value between two equally valid label definitions, which no amount of data
+resolves because it is not a sampling problem.**
+
+Measured instance. Detector 1 flags label-definition shift when Cohen's kappa on
+a fixed audit subset falls below 0.60 — the conventional Landis-Koch "substantial
+agreement" boundary, fixed before any of this was measured. On full MIMIC-IV
+(74,829 stays) the kappa between SOFA window-mode and SOFA single-point scoring,
+two equally defensible Sepsis-3 operationalizations, is **0.602 with a 95% CI of
+[0.597, 0.607]**. The population value sits on the decision boundary. At the
+detector's operating point (repeated 500-patient audit draws) the control
+therefore flags 48.4% of the time: the verdict is close to arbitrary.
+
+This is NOT small-sample noise, and the demo-scale data actively understated it:
+at n=117 the same control gave P(flag)=0.216, so scaling the cohort 640x more
+than DOUBLED the flag probability rather than resolving it. More data narrows the
+interval around 0.602; it cannot move 0.602 away from 0.60.
+
+The threshold was not moved. Adjusting it after observing this failure would be
+the same fitting error the detector 5 pre-registration exists to prevent, and the
+temptation is stronger here precisely because the required adjustment is tiny.
+
+The counterexample is what keeps this from reading as "kappa-based label-shift
+detection does not work": on the SAME full-scale run, eICU's equivalent control
+moved AWAY from the boundary (0.771 -> 0.826, P(flag)=0.000). The failure is
+MIMIC-specific and axis-specific — it is the window-vs-single-point axis on one
+database, not a general property of the detector or of the method. Keep that
+contrast adjacent to the finding wherever it appears.
 
 ## Finding: diagnostics need an explicit UNDECIDABLE state
 
