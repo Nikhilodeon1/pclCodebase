@@ -34,8 +34,27 @@ import sys
 import numpy as np
 import pandas as pd
 
-ROOT = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
-    os.path.abspath(__file__)))), "data", "physionet2019")
+def _physionet_root():
+    """PhysioNet location, honouring PHYSIONET_DIR.
+
+    This used to be a hardcoded path relative to __file__, which silently
+    ignored the PHYSIONET_DIR override every other loader respects. On the pod
+    that meant detector 5 looked inside the repo for data living on the network
+    volume, and the E4 regression guard died mid-run AFTER the multi-hour eICU
+    and MIMIC loads had already completed.
+    """
+    here = os.path.dirname(os.path.dirname(os.path.dirname(
+        os.path.abspath(__file__))))
+    if here not in sys.path:
+        sys.path.insert(0, here)
+    try:
+        from config import PHYSIONET_DIR
+        return PHYSIONET_DIR
+    except Exception:
+        return os.path.join(here, "data", "physionet2019")
+
+
+ROOT = _physionet_root()
 
 AVAIL_RATIO_FLAG = 2.0     # component availability differing by more than this
 # Threshold on composition_gap_ratio. Value unchanged from the one frozen in
@@ -46,7 +65,7 @@ COMP_EXPLAINS_FLAG = COMP_GAP_RATIO_FLAG   # pre-registration alias, do not reus
 
 
 # ── decision rules ───────────────────────────────────────────────────────────
-# Two variants, specified in rebootpcl/PREREGISTRATION.md BEFORE any external
+# Two variants, specified in detectors/PREREGISTRATION.md BEFORE any external
 # result existed. Variant A is the detector as originally written. Variant B
 # drops the composition gate, which would recover the PhysioNet A/B true
 # positive -- which is exactly why it may not be adopted on the strength of
@@ -231,7 +250,7 @@ def run(seed=0, n=1200, pair=None, verbose=False, legacy=False):
     (name_a, files_a, name_b, files_b, expected_flag), used by the external
     validation to point the same diagnostic at a different dataset pair.
     """
-    from rebootpcl.harness import Case
+    from detectors.harness import Case
     fa, fb = sample_files(seed, n, legacy=legacy)
 
     if pair is None:
@@ -254,7 +273,7 @@ def run(seed=0, n=1200, pair=None, verbose=False, legacy=False):
 
 
 def main():
-    from rebootpcl.harness import confusion, fmt_matrix
+    from detectors.harness import confusion, fmt_matrix
     n = int(sys.argv[1]) if len(sys.argv) > 1 else 1500
     seed = int(sys.argv[2]) if len(sys.argv) > 2 else 0
 
