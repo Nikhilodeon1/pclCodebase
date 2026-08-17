@@ -164,7 +164,7 @@ def verdict_for_file(res):
 def run(paths=None, verbose=False):
     """paths: list of (path, expected_flag). Defaults to the two historical
     fixtures -- the real buggy sweep and its correction."""
-    from rebootpcl.harness import Case
+    from detectors.harness import Case
     if paths is None:
         paths = [(os.path.join(FIX, "sweep_BUGGY.py"), True),
                  (os.path.join(FIX, "sweep_FIXED.py"), False)]

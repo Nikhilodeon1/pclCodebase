@@ -1,25 +1,30 @@
-# Chat 2 — Confound-detection protocol (new methods paper)
+# Chat 1 — Confound-detection protocol (new methods paper)
 
 Five automated detectors, one per confound type, each validated against known
 ground truth. All five run LOCALLY ON CPU. Total compute cost: $0.
 
 ## Contents
-    rebootpcl/checks/check1_label_shift.py         label-definition shift
-    rebootpcl/checks/check2_pretrain_leakage.py    non-zero-shot pretraining leak
-    rebootpcl/checks/check3_selection_audit.py     OOD-contaminated selection
-    rebootpcl/checks/check4_circularity.py         circular derived constraints
-    rebootpcl/checks/check5_missingness_scale.py   missingness/scale artifacts
-    rebootpcl/fixtures/sweep_BUGGY.py              real historical bug (commit c7cb42f)
-    rebootpcl/fixtures/sweep_FIXED.py              corrected version
+    detectors/checks/check1_label_shift.py         label-definition shift
+    detectors/checks/check2_pretrain_leakage.py    non-zero-shot pretraining leak
+    detectors/checks/check3_selection_audit.py     OOD-contaminated selection
+    detectors/checks/check4_circularity.py         circular derived constraints
+    detectors/checks/check5_missingness_scale.py   missingness/scale artifacts
+    detectors/fixtures/sweep_BUGGY.py              real historical bug (commit c7cb42f)
+    detectors/fixtures/sweep_FIXED.py              corrected version
+    detectors/baselines/                           naive baselines the detectors are compared against
+    detectors/results/                             parsed JSON output per check
+    detectors/logs/                                raw stdout from each run
     src/, config.py                                model + data loaders the checks import
     data/                                          JUNCTION to ../data (not a copy)
 
+Dependencies: `../requirements.txt` (shared root venv — no separate copy here).
+
 ## Run
-    python rebootpcl/checks/check3_selection_audit.py      # seconds
-    python rebootpcl/checks/check4_circularity.py          # seconds
-    PCL_TEST_MODE=1 python rebootpcl/checks/check1_label_shift.py        # ~2 min
-    python rebootpcl/checks/check5_missingness_scale.py 1200             # ~4 min
-    PCL_TEST_MODE=1 python rebootpcl/checks/check2_pretrain_leakage.py --stays 900 --seeds 3 --epochs 3   # ~5 min
+    python detectors/checks/check3_selection_audit.py      # seconds
+    python detectors/checks/check4_circularity.py          # seconds
+    PCL_TEST_MODE=1 python detectors/checks/check1_label_shift.py        # ~2 min
+    python detectors/checks/check5_missingness_scale.py 1200             # ~4 min
+    PCL_TEST_MODE=1 python detectors/checks/check2_pretrain_leakage.py --stays 900 --seeds 3 --epochs 3   # ~5 min
 
 Local runs exceed the 2-minute tool timeout — use
 `nohup ... > out.log 2>&1 &` and poll the log.
@@ -46,8 +51,8 @@ comparison target; it previously served as both. The kappa 0.358 figure quoted
 earlier is ICD vs SOFA-single-point and belongs only in the control breakdown,
 never as a second headline.
 
-External validation and specificity, detector 1 (see rebootpcl/external1.out,
-rebootpcl/bootstrap_kappa.out):
+External validation and specificity, detector 1 (see detectors/logs/external1.out,
+detectors/logs/bootstrap_kappa.out):
 
     MIMIC-IV demo (external)  TP=1 FP=0 FN=0 TN=3
     eICU (original database)  TP=1 FP=0 FN=0 TN=3
@@ -57,7 +62,7 @@ suspicion-window WIDTH controls sit at kappa 0.93-1.00 and would pass almost
 anything; only window-vs-single-point discriminates. A genuinely hard control
 must vary the infection-suspicion criteria, not the window width.
 
-FULL-SCALE RE-RUN (2026-08-06, RunPod, `rebootpcl/full1_probe.out` on the pod's
+FULL-SCALE RE-RUN (2026-08-06, RunPod, `detectors/logs/full1_probe.out` on the pod's
 /workspace volume). Full MIMIC-IV 3.1 and full eICU-CRD 2.0, same code, same
 PCL_TEST_MODE=1, only the data changed:
 
@@ -90,7 +95,7 @@ The near-ceiling framing also survives: the two window-WIDTH controls are still
 0.928 and 0.984 at full scale, so "TN=3 (1 discriminating, 2 non-discriminating)"
 was not a small-sample artifact either.
 
-FULL-SCALE BOOTSTRAP (`rebootpcl/full1_bootstrap.out`, 5000 resamples).
+FULL-SCALE BOOTSTRAP (`detectors/logs/full1_bootstrap.out`, 5000 resamples).
 MIMIC n=74,829, eICU n=132,900. Two intervals per case: over the whole cohort,
 and over repeated draws of the 500-patient AUDIT SUBSET, which is what the
 detector actually scores and therefore what governs its verdict.
@@ -162,7 +167,7 @@ rather than a fixed -2.0. At 5 seeds the floor is unchanged at 5% leakage
 (rel. delta -3.1%, t=-3.96 against crit -2.132).
 
 Detector 2 external validation, MIMIC-IV demo (source) -> eICU demo (target),
-5 seeds (rebootpcl/external2.out):
+5 seeds (detectors/logs/external2.out):
 
     leakage    probe loss   paired rel. delta      t    detected
         0%      0.025879                0.0%    0.00     False     <- FP control
@@ -197,7 +202,7 @@ DETECTOR 2 SCOPE — state this wherever detector 2's results are reported, not
 only in the limitations list. Detector 2 detects DISTRIBUTIONAL OVERLAP between
 pretraining data and the target site, with missingness pattern as one channel of
 it. It does NOT isolate leakage of physiological values. Measured across 3 seeds
-(rebootpcl/check2_fill_audit.out), training-set fill proportion moves
+(detectors/logs/check2_fill_audit.out), training-set fill proportion moves
 monotonically with the injected leakage, 0.588 at 0% to 0.539 at 100%, because
 Site B records more sparsely than Site A. Adding target stays therefore changes
 the value distribution and the missingness pattern together, and this design
@@ -275,7 +280,7 @@ flag alongside its verdict, and undecidable cases are excluded from the
 confusion matrix and reported in their own column rather than defaulting to
 either class.
 
-## Task 5 — what standard practice catches (rebootpcl/baselines_n2400.out)
+## Task 5 — what standard practice catches (detectors/logs/baselines_n2400.out)
 
 Three standard checks against detector 2's leakage injection, 3 seeds,
 2400 stays/site, scored the same TP/FP/FN/TN way as the detectors:
@@ -353,4 +358,4 @@ address without a different design.
   The availability-ratio signal is robust throughout (34-41x against a 2.0
   gate); it is the composition-share gate that fails.
   Do NOT lower the threshold to recover the TP — that fits the detector to the
-  case it is supposed to detect. See rebootpcl/check5_sampling_sensitivity.py.
+  case it is supposed to detect. See detectors/check5_sampling_sensitivity.py.

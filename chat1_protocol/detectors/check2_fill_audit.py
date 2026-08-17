@@ -18,7 +18,7 @@ Two quantities per condition:
 
 No training runs; this only builds datasets.
 
-    PCL_TEST_MODE=1 python rebootpcl/check2_fill_audit.py --stays 900 --seeds 3
+    PCL_TEST_MODE=1 python detectors/check2_fill_audit.py --stays 900 --seeds 3
 """
 import argparse
 import json
@@ -29,7 +29,7 @@ import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from rebootpcl.checks.check2_pretrain_leakage import build, LEVELS
+from detectors.checks.check2_pretrain_leakage import build, LEVELS
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 RESULTS = os.path.join(HERE, "results")

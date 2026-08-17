@@ -5,7 +5,7 @@ import unittest
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))))
 
-from rebootpcl.run_all import CHECKS, SLOW, collect_fast
+from detectors.run_all import CHECKS, SLOW, collect_fast
 
 
 class TestRunner(unittest.TestCase):

@@ -12,7 +12,7 @@ repos contain no such instance, the detector cannot be scored against them, and
 that absence is a property of those codebases rather than a detector failure.
 Saying so precisely is the deliverable in that case.
 
-    python rebootpcl/external/run_repos4.py
+    python detectors/external/run_repos4.py
 """
 import argparse
 import json
@@ -22,8 +22,8 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))))
 
-from rebootpcl.lineage_extract import extract_lineage, resolve
-from rebootpcl.external.repos import SCRATCH
+from detectors.lineage_extract import extract_lineage, resolve
+from detectors.external.repos import SCRATCH
 
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ROOT = os.path.dirname(HERE)

@@ -9,7 +9,7 @@ of the site. Under a seeded random sample of the same size the ratio came out at
 This script measures both, so the difference is characterised rather than
 assumed: the legacy prefix once, and several independent random samples.
 
-    python rebootpcl/check5_sampling_sensitivity.py --seeds 5 --n 1200
+    python detectors/check5_sampling_sensitivity.py --seeds 5 --n 1200
 """
 import argparse
 import json
@@ -20,7 +20,7 @@ import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from rebootpcl.checks.check5_missingness_scale import run, COMP_GAP_RATIO_FLAG
+from detectors.checks.check5_missingness_scale import run, COMP_GAP_RATIO_FLAG
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 RESULTS = os.path.join(HERE, "results")

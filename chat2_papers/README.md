@@ -1,4 +1,4 @@
-# Chat 1 — Papers (URTC / Lin, and the withdrawn NeurIPS draft)
+# Chat 2 — Papers (URTC / Lin, and the withdrawn NeurIPS draft)
 
 Self-contained. No datasets, no model code, no compute needed — every number is
 already hardcoded in the build script.

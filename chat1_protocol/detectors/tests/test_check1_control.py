@@ -13,7 +13,7 @@ import numpy as np
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))))
 
-from rebootpcl.checks.check1_label_shift import build_scenarios
+from detectors.checks.check1_label_shift import build_scenarios
 
 
 class TestNegativeControlIsNotTautological(unittest.TestCase):

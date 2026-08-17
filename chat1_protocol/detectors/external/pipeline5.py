@@ -18,7 +18,7 @@ Two things must be got right or the external result is meaningless:
     external component set is therefore analogous, not identical, and results
     are not a like-for-like replication of the PhysioNet component set.
 
-Ground truth comes from controlled ablation (see rebootpcl/PREREGISTRATION.md):
+Ground truth comes from controlled ablation (see detectors/PREREGISTRATION.md):
 physiology is held fixed and only recording availability is changed, so the
 expected verdict is known by construction rather than assumed.
 """

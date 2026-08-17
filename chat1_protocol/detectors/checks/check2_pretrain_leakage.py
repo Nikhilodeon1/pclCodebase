@@ -19,7 +19,7 @@ seeds and the decision uses the 0%-leakage spread as its null.
 Source = PhysioNet Site A, target = PhysioNet Site B. Model is the small test-mode
 transformer, so this runs on CPU without paid compute.
 
-    PCL_TEST_MODE=1 python rebootpcl/checks/check2_pretrain_leakage.py --stays 1200 --seeds 3
+    PCL_TEST_MODE=1 python detectors/checks/check2_pretrain_leakage.py --stays 1200 --seeds 3
 """
 import os
 import sys
@@ -181,7 +181,7 @@ def run(seed=0, stays=900, epochs=3, seeds=5, verbose=False, device=None):
     `seed` shifts the whole seed block, so a sweep over it measures whether the
     VERDICT reproduces, not whether one training run does.
     """
-    from rebootpcl.harness import Case
+    from detectors.harness import Case
     from config import TEST_MODE
     if not TEST_MODE:
         raise RuntimeError("check 2 requires PCL_TEST_MODE=1")
@@ -202,7 +202,7 @@ def main():
     args = ap.parse_args()
 
     from config import TEST_MODE, D_MODEL, N_LAYERS
-    from rebootpcl.harness import Case, confusion, fmt_matrix
+    from detectors.harness import Case, confusion, fmt_matrix
     if not TEST_MODE:
         sys.exit("Run with PCL_TEST_MODE=1 — this check is deliberately small.")
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -248,7 +248,7 @@ def main():
              for f in LEVELS]
     print("\n" + fmt_matrix("check2", confusion(cases)))
     json.dump({str(k): v for k, v in results.items()},
-              open(os.path.join(HERE, "check2_results.json"), "w"), indent=2)
+              open(os.path.join(HERE, "..", "results", "check2_results.json"), "w"), indent=2)
     ok = (not detected[0.0]) and (floor is not None)
     print("verdict:", "DETECTOR VALIDATED" if ok else
           "INCONCLUSIVE — leak not separable from seed noise at this scale")

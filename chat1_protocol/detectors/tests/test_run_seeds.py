@@ -5,7 +5,7 @@ import unittest
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))))
 
-from rebootpcl.run_seeds import SEEDED_CHECKS, summarize
+from detectors.run_seeds import SEEDED_CHECKS, summarize
 
 
 class TestSeedSweep(unittest.TestCase):

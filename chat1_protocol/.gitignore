@@ -1,4 +1,4 @@
 __pycache__/
 *.pyc
-rebootpcl/results/
-rebootpcl/checks/_leak_*.pt
+detectors/results/
+detectors/checks/_leak_*.pt

@@ -6,7 +6,7 @@ import unittest
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))))
 
-from rebootpcl.harness import Case, confusion, rates, seed_sweep, fmt_matrix
+from detectors.harness import Case, confusion, rates, seed_sweep, fmt_matrix
 
 
 class TestConfusion(unittest.TestCase):

@@ -5,7 +5,7 @@ seed sweep over them would produce a flag rate of exactly 0 or 1 with zero
 variance by construction. That is not evidence of stability and they are
 excluded rather than padded into the table.
 
-    PCL_TEST_MODE=1 python rebootpcl/run_seeds.py --seeds 5
+    PCL_TEST_MODE=1 python detectors/run_seeds.py --seeds 5
 """
 import argparse
 import importlib
@@ -15,7 +15,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from rebootpcl.harness import seed_sweep
+from detectors.harness import seed_sweep
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 RESULTS = os.path.join(HERE, "results")
@@ -45,7 +45,7 @@ def summarize(sweep):
 
 
 def sweep_check(num, seeds, n_stays, check2_seeds):
-    m = importlib.import_module(f"rebootpcl.checks.{SEEDED_CHECKS[num]}")
+    m = importlib.import_module(f"detectors.checks.{SEEDED_CHECKS[num]}")
     if num == 5:
         return seed_sweep(lambda s: m.run(seed=s, n=n_stays), seeds)
     if num == 2:

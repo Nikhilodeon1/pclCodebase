@@ -1,49 +1,45 @@
-# Physiology-Constrained Learning (PCL)
+# PCL (Physiology-Constrained Learning) — repo index
 
-This repository contains the implementation for **Physiology-Constrained Learning (PCL)**, a representation learning framework that enforces hemodynamic and biochemical laws (e.g., Mean Arterial Pressure, Henderson-Hasselbalch) during masked transformer pretraining to improve OOD generalization in clinical time-series.
+Physiology-Constrained Learning: a representation learning framework that
+enforces hemodynamic and biochemical laws (Mean Arterial Pressure,
+Henderson-Hasselbalch, Severinghaus) during masked transformer pretraining, for
+cross-hospital generalization on clinical time-series. The original headline
+result did not survive clean labels — see `chat2_papers/` for the corrected
+story.
 
-## Quick Start
+This is not a single runnable pipeline anymore. It's a shared workspace split
+across two active work-streams plus one frozen archive.
 
-The entire experimental pipeline is managed by `run_paper_experiments.py`.
+## Where things are
 
-### 1. Environment Setup
+| Folder | What | Start here |
+|---|---|---|
+| `chat1_protocol/` | Confound-detection methods paper — five detectors, each validated against known ground truth. Code + data + tests. | [chat1_protocol/README.md](chat1_protocol/README.md) |
+| `chat2_papers/` | The URTC paper (submitted) and the withdrawn NeurIPS draft. No datasets, no compute — self-contained manuscript build. | [chat2_papers/README.md](chat2_papers/README.md) |
+| `_archive/` | Frozen pre-split pipeline (`run_paper_experiments.py`, old `src/`, old results). Superseded — kept for history only. | [_archive/README.md](_archive/README.md) |
+| `data/` | Shared 455MB dataset (PhysioNet full, eICU-demo, MIMIC-IV demo). | — |
+| `venv/` | Shared Python venv. Install with root `requirements.txt`. | — |
 
-We recommend using Python 3.13. Ensure you have a GPU for production runs.
+`chat1_protocol/` and `chat2_papers/` each own their own folder; neither
+modifies the other's files.
+
+## Hazard: the `data/` junctions
+
+`chat1_protocol/data` (and any other `*/data` you find) is a **Windows
+directory junction** into the one real `data/` at repo root — not a copy.
+**Never `rm -rf` a junction path** — on Windows that can follow the link and
+delete the real 455MB dataset. To remove a junction, use:
 
 ```bash
-# Create and activate venv
-python -m venv venv
-source venv/bin/activate  # Linux
-.\venv\Scripts\activate   # Windows
+cmd //c rmdir "chat1_protocol\data"
+```
 
-# Install dependencies
+## Setup
+
+```bash
+python -m venv venv
+.\venv\Scripts\activate      # Windows
 pip install -r requirements.txt
 ```
 
-### 2. Run Experiments (Test Mode)
-
-Use this to verify the pipeline is working. It uses 15% of the data and a small model. It should finish in ~5-10 minutes.
-
-```bash
-# Linux/Ubuntu
-PCL_TEST_MODE=1 python3 run_paper_experiments.py
-
-# Windows PowerShell
-$env:PCL_TEST_MODE=1; python run_paper_experiments.py
-```
-
-### 3. Run Experiments (Production Mode)
-
-Use this to generate the final paper results. It uses 100% of the data and the full 6-layer architecture. **Warning: This takes several hours.**
-
-```bash
-# Linux/Ubuntu
-PCL_TEST_MODE=0 python3 run_paper_experiments.py
-```
-
-## 📂 Project Structure
-
-- `src/losses/pcl_loss.py`: Core PCL implementation (Physical laws).
-- `src/training/train_utils.py`: Pretraining logic and Loss Balancer.
-- `src/eval/evaluate_utils.py`: Finetuning and OOD scoring.
-- `config.py`: Global hyperparameters and paths.
+Then follow whichever sub-folder's README matches what you're working on.

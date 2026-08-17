@@ -14,7 +14,7 @@ import unittest
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))))
 
-from rebootpcl.lineage_extract import (classify_guard, extract_lineage,
+from detectors.lineage_extract import (classify_guard, extract_lineage,
                                        match_equation, resolve,
                                        to_detector4_lineage)
 

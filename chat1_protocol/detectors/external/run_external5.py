@@ -12,7 +12,7 @@ availability ratio would be circular, since that is Variant B's whole signal.
 Both variants run on every case. The decision rule between them is fixed in the
 pre-registration and is NOT re-derived here.
 
-    PCL_TEST_MODE=1 python rebootpcl/external/run_external5.py --seeds 5
+    PCL_TEST_MODE=1 python detectors/external/run_external5.py --seeds 5
 """
 import argparse
 import json
@@ -24,10 +24,10 @@ import numpy as np
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))))
 
-from rebootpcl.harness import Case, confusion, fmt_matrix
-from rebootpcl.checks.check5_missingness_scale import (
+from detectors.harness import Case, confusion, fmt_matrix
+from detectors.checks.check5_missingness_scale import (
     VARIANTS, run_check_on_stays, run_check, sample_files)
-from rebootpcl.external.pipeline5 import (EXTERNAL_KEYS, ablate, load_site,
+from detectors.external.pipeline5 import (EXTERNAL_KEYS, ablate, load_site,
                                           split_arrays, to_stays)
 
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

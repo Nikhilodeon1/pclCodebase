@@ -16,7 +16,7 @@ so a degradation-triggered baseline stays silent precisely when the confound is
 worst. That is a prediction. It is scored as TP/FP/FN/TN like everything else,
 and the run reports whether it held.
 
-    PCL_TEST_MODE=1 python rebootpcl/standard/run_baselines.py --seeds 3
+    PCL_TEST_MODE=1 python detectors/standard/run_baselines.py --seeds 3
 """
 import argparse
 import json
@@ -29,9 +29,9 @@ import torch
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))))
 
-from rebootpcl.harness import Case, confusion, fmt_matrix
-from rebootpcl.checks.check2_pretrain_leakage import LEVELS, build
-from rebootpcl.standard.baseline_checks import BASELINES, auroc
+from detectors.harness import Case, confusion, fmt_matrix
+from detectors.checks.check2_pretrain_leakage import LEVELS, build
+from detectors.baselines.baseline_checks import BASELINES, auroc
 
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RESULTS = os.path.join(HERE, "results")

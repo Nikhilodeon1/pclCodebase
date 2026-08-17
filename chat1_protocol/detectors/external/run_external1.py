@@ -25,7 +25,7 @@ The positive case is ICD administrative coding against SOFA-derived Sepsis-3,
 whose ground truth comes from the definitions themselves rather than from the
 detector's own output.
 
-    PCL_TEST_MODE=1 python rebootpcl/external/run_external1.py
+    PCL_TEST_MODE=1 python detectors/external/run_external1.py
 """
 import argparse
 import json
@@ -38,8 +38,8 @@ import pandas as pd
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))))
 
-from rebootpcl.harness import Case, confusion, fmt_matrix
-from rebootpcl.checks.check1_label_shift import diagnose
+from detectors.harness import Case, confusion, fmt_matrix
+from detectors.checks.check1_label_shift import diagnose
 
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RESULTS = os.path.join(HERE, "results")

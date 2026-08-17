@@ -13,7 +13,7 @@ import numpy as np
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))))
 
-from rebootpcl.checks.check2_pretrain_leakage import flag_from_relative
+from detectors.checks.check2_pretrain_leakage import flag_from_relative
 
 
 class TestFlagThreshold(unittest.TestCase):
@@ -59,7 +59,7 @@ class TestSplitSeedIsNotPinned(unittest.TestCase):
         """The split was drawn once with seed=0 outside the seed loop, so every
         'seed' shared one split and split variance was excluded from the
         reported spread. Guard against that regressing."""
-        import rebootpcl.checks.check2_pretrain_leakage as m
+        import detectors.checks.check2_pretrain_leakage as m
         src = open(m.__file__, encoding="utf-8").read()
         self.assertNotIn("build(args.stays, seed=0)", src,
                          "build() must be called inside the seed loop with the "

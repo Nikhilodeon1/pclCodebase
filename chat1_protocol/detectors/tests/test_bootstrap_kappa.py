@@ -7,7 +7,7 @@ import numpy as np
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))))
 
-from rebootpcl.external.bootstrap_kappa import bootstrap_kappa_ci
+from detectors.external.bootstrap_kappa import bootstrap_kappa_ci
 
 
 class TestBootstrapCI(unittest.TestCase):

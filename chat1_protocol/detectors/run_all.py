@@ -1,7 +1,7 @@
 """Reproduce the five-row confound-detector table.
 
-    python rebootpcl/run_all.py                       # fast: static live, rest cached
-    PCL_TEST_MODE=1 python rebootpcl/run_all.py --full   # re-run everything (~25 min)
+    python detectors/run_all.py                       # fast: static live, rest cached
+    PCL_TEST_MODE=1 python detectors/run_all.py --full   # re-run everything (~25 min)
 
 Checks 3 and 4 are static analysis and take seconds. Checks 1, 2 and 5 read data
 or train, so --fast reads their last recorded result from results/ rather than
@@ -16,13 +16,13 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from rebootpcl.harness import confusion, fmt_matrix, fmt_uncertainty
+from detectors.harness import confusion, fmt_matrix, fmt_uncertainty
 
 # Measured uncertainty per real-data detector, from the runs of record. Static
 # detectors (3, 4) take None and render their reason instead. Sources:
-#   check1  rebootpcl/bootstrap_kappa.out   (thinnest control, MIMIC n=117)
-#   check2  rebootpcl/check2_5seed.out      (paired rel. delta at the 5% floor)
-#   check5  rebootpcl/check5_sampling.out   (flag rate across random samples)
+#   check1  detectors/bootstrap_kappa.out   (thinnest control, MIMIC n=117)
+#   check2  detectors/check2_5seed.out      (paired rel. delta at the 5% floor)
+#   check5  detectors/check5_sampling.out   (flag rate across random samples)
 UNCERTAINTY = {
     # Full-scale (MIMIC-IV 3.1, n=74,829) at the detector's OPERATING POINT --
     # repeated 500-patient audit draws, not the whole cohort. The thinnest
@@ -51,7 +51,7 @@ SLOW = {n for n, (_, _, slow) in CHECKS.items() if slow}
 
 
 def _mod(n):
-    return importlib.import_module(f"rebootpcl.checks.{CHECKS[n][1]}")
+    return importlib.import_module(f"detectors.checks.{CHECKS[n][1]}")
 
 
 def _cached(n):

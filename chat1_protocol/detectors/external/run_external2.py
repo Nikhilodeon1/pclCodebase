@@ -13,7 +13,7 @@ normalization is a FIXED affine map by clinical plausibility bounds, identical
 for every dataset -- MinMaxNormalizer.fit() is a no-op -- so there is no
 data-fitted per-site scaling that could normalize away the cross-site
 difference the probe measures. Guarded by
-rebootpcl/tests/test_normalizer_bounds.py.
+detectors/tests/test_normalizer_bounds.py.
 
 LEAK POOL IS CAPPED TO THE SOURCE SIZE, and this matters for interpretation.
 MIMIC-IV demo yields ~117 stays against eICU's ~1563. Left uncapped, "5%
@@ -25,7 +25,7 @@ contamination ratio, so the detection floor is comparable to the PhysioNet
 figure. The probe is drawn from target stays outside the leak pool and is
 therefore not size-limited by the cap.
 
-    PCL_TEST_MODE=1 python rebootpcl/external/run_external2.py --seeds 5
+    PCL_TEST_MODE=1 python detectors/external/run_external2.py --seeds 5
 """
 import argparse
 import json
@@ -38,8 +38,8 @@ import torch
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))))
 
-from rebootpcl.harness import Case, confusion, fmt_matrix
-from rebootpcl.checks.check2_pretrain_leakage import (
+from detectors.harness import Case, confusion, fmt_matrix
+from detectors.checks.check2_pretrain_leakage import (
     LEVELS, analyse, flag_from_relative, run_one)
 
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

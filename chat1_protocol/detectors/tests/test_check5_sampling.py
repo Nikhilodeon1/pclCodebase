@@ -11,7 +11,7 @@ import unittest
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))))
 
-from rebootpcl.checks.check5_missingness_scale import ROOT, sample_files
+from detectors.checks.check5_missingness_scale import ROOT, sample_files
 
 HAVE_DATA = os.path.isdir(os.path.join(ROOT, "training_setA"))
 

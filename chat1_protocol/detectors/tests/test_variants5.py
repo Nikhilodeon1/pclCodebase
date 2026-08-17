@@ -1,4 +1,4 @@
-"""The two detector-5 decision rules fixed in rebootpcl/PREREGISTRATION.md.
+"""The two detector-5 decision rules fixed in detectors/PREREGISTRATION.md.
 
 Thresholds are frozen there and must not drift: AVAIL_RATIO_FLAG = 2.0, and the
 composition gate at 0.30 (named COMP_EXPLAINS_FLAG in the pre-registration,
@@ -12,7 +12,7 @@ import unittest
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))))
 
-from rebootpcl.checks.check5_missingness_scale import (
+from detectors.checks.check5_missingness_scale import (
     AVAIL_RATIO_FLAG, COMP_EXPLAINS_FLAG, COMP_GAP_RATIO_FLAG, VARIANTS,
     variant_a, variant_b)
 

@@ -13,7 +13,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))))
 
 from src.data.variables import VAR_TO_IDX
-from rebootpcl.external.pipeline5 import (ablate, split_arrays, stay_components,
+from detectors.external.pipeline5 import (ablate, split_arrays, stay_components,
                                           to_stays, TERMS)
 
 

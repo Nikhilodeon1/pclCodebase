@@ -92,7 +92,7 @@ def verify_lineage_against_code():
 
 def run(lineage=None, expected=None, verbose=False):
     """One Case per (dataset, constraint) cell of the lineage table."""
-    from rebootpcl.harness import Case
+    from detectors.harness import Case
     lineage = LINEAGE if lineage is None else lineage
     expected = EXPECTED if expected is None else expected
     out = []

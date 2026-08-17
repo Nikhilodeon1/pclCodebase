@@ -13,7 +13,7 @@ OK. INDETERMINATE is reported in its own column and scored as a MISS on both
 sides: on an expected positive it is a false negative, and on an expected
 negative it is NOT credit.
 
-    python rebootpcl/external/run_repos.py
+    python detectors/external/run_repos.py
 """
 import argparse
 import json
@@ -23,9 +23,9 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))))
 
-from rebootpcl.checks.check3_selection_audit import (
+from detectors.checks.check3_selection_audit import (
     DEFAULT_VOCAB, Vocab, audit_file, verdict_for_file)
-from rebootpcl.external.repos import TARGETS, resolved_files
+from detectors.external.repos import TARGETS, resolved_files
 
 # EXTENDED vocabulary -- FITTED to third-party code AFTER seeing detector 3 fail
 # on it. Every name here was added because it appears in the repositories under

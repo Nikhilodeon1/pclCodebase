@@ -12,7 +12,7 @@ import unittest
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))))
 
-from rebootpcl.harness import (DETERMINISTIC_CHECKS, STOCHASTIC_CHECKS,
+from detectors.harness import (DETERMINISTIC_CHECKS, STOCHASTIC_CHECKS,
                                fmt_uncertainty, requires_uncertainty)
 
 

@@ -9,7 +9,7 @@ from a flag at that sample size, which is a far stronger claim than proximity.
 Resampling is over PATIENTS with replacement, which is the unit the audit subset
 samples and the unit kappa is computed across.
 
-    PCL_TEST_MODE=1 python rebootpcl/external/bootstrap_kappa.py --iters 5000
+    PCL_TEST_MODE=1 python detectors/external/bootstrap_kappa.py --iters 5000
 """
 import argparse
 import json
@@ -21,7 +21,7 @@ import numpy as np
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))))
 
-from rebootpcl.checks.check1_label_shift import cohens_kappa, KAPPA_FLAG
+from detectors.checks.check1_label_shift import cohens_kappa, KAPPA_FLAG
 
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RESULTS = os.path.join(HERE, "results")
@@ -113,7 +113,7 @@ def main():
                          "re-labelling, which costs hours on full data")
     args = ap.parse_args()
 
-    from rebootpcl.external.run_external1 import (mimic_labels, eicu_labels,
+    from detectors.external.run_external1 import (mimic_labels, eicu_labels,
                                                   load_labels)
 
     print("=" * 78)

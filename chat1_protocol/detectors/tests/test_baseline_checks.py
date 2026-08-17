@@ -7,7 +7,7 @@ import numpy as np
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))))
 
-from rebootpcl.standard.baseline_checks import (BASELINES, auroc,
+from detectors.baselines.baseline_checks import (BASELINES, auroc,
                                                 external_floor,
                                                 kfold_cv_instability,
                                                 train_test_gap)

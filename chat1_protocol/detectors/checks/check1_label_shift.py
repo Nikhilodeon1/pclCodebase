@@ -148,7 +148,7 @@ def split(ids, seed):
 
 
 def run(seed=0, verbose=False):
-    from rebootpcl.harness import Case
+    from detectors.harness import Case
     ids, icd, sofa, sofa_window = load_labels(verbose=verbose)
     s1, s2, audit = split(ids, seed)
 
@@ -178,7 +178,7 @@ def split_noise(seed=0):
 
 
 def main():
-    from rebootpcl.harness import confusion, fmt_matrix
+    from detectors.harness import confusion, fmt_matrix
 
     print("=" * 78)
     print("CHECK 1 — label-definition shift across sites")
