@@ -8,8 +8,11 @@ already hardcoded in the build script.
     paper/make_figure.py                generates the three figures
     paper/URTC_paper.docx               current build (5 pages)
     paper/conference-template-letter.docx   official IEEE letter template
-    paper/fmain_type2.tex               WITHDRAWN NeurIPS draft (see warning)
-    paper/fmain.tex                     older fuller camera-ready draft
+
+The withdrawn original NeurIPS draft (`fmain_type2.tex`, `fmain.tex`) is NOT
+here — it's quarantined at `_archive/pcl_original_draft/` (see warning below).
+It used to sit in this folder and read as a third, active project; it isn't
+one.
 
 ## Rebuild
     python paper/make_figure.py && python paper/build_urtc.py
@@ -21,10 +24,11 @@ Render and LOOK at it (Word/pandoc are not installed):
 ## Warnings
 * `/paper/` is gitignored in the parent repo — these files were NOT version
   controlled. Back up before large edits.
-* `fmain_type2.tex` still claims the PCL violation score works as an OOD detector
-  (detection AUROC 0.70-0.79). That claim is now known to be confounded by the
-  measurement-availability finding and was never re-audited. Do not reuse it
-  without correcting. The URTC paper does not make this claim.
+* `_archive/pcl_original_draft/fmain_type2.tex` still claims the PCL violation
+  score works as an OOD detector (detection AUROC 0.70-0.79). That claim is
+  now known to be confounded by the measurement-availability finding and was
+  never re-audited. Do not reuse it without correcting. The URTC paper does
+  not make this claim.
 * Any `results/*.json` you find elsewhere in the parent repo is STALE single-seed
   demo output, not the paper's numbers. The verified full-scale numbers live in
   the handoff prompt and in build_urtc.py.

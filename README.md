@@ -8,7 +8,9 @@ result did not survive clean labels — see `chat2_papers/` for the corrected
 story.
 
 This is not a single runnable pipeline anymore. It's a shared workspace split
-across two active work-streams plus one frozen archive.
+across two active work-streams plus one frozen archive. **Start with
+[PROJECTS.md](PROJECTS.md)** — one table, the two active papers, nothing
+else.
 
 ## Where things are
 
