@@ -8,9 +8,11 @@ result did not survive clean labels — see `chat2_papers/` for the corrected
 story.
 
 This is not a single runnable pipeline anymore. It's a shared workspace split
-across two active work-streams plus one frozen archive. **Start with
-[PROJECTS.md](PROJECTS.md)** — one table, the two active papers, nothing
-else.
+across four active work-streams plus one frozen archive. **Start with
+[PROJECTS.md](PROJECTS.md)** — one table, every active paper, nothing else.
+That file is the fix for exactly the "wait, is this a third project?"
+confusion that's happened before here — if you add or retire a project,
+update it there, not just in your head.
 
 ## Where things are
 
@@ -18,12 +20,14 @@ else.
 |---|---|---|
 | `chat1_protocol/` | Confound-detection methods paper — five detectors, each validated against known ground truth. Code + data + tests. | [chat1_protocol/README.md](chat1_protocol/README.md) |
 | `chat2_papers/` | The URTC paper (submitted) and the withdrawn NeurIPS draft. No datasets, no compute — self-contained manuscript build. | [chat2_papers/README.md](chat2_papers/README.md) |
+| `pcl-legacy2/` | Cross-task generalization of URTC's selection-criterion finding. GPU/RunPod project, blocked on the pod. | [pcl-legacy2/README.md](pcl-legacy2/README.md) |
+| `deadpcl/` | ML4H Findings negative-results writeup of the original PCL investigation. | [deadpcl/pcl_findings_draft.tex](deadpcl/pcl_findings_draft.tex) |
 | `_archive/` | Frozen pre-split pipeline (`run_paper_experiments.py`, old `src/`, old results). Superseded — kept for history only. | [_archive/README.md](_archive/README.md) |
+| `pod_monitor.py` | Shared GPU-idle/active watchdog — import into any GPU-pod script to get a loud switch-pods alert in either direction. See its docstring. | — |
 | `data/` | Shared 455MB dataset (PhysioNet full, eICU-demo, MIMIC-IV demo). | — |
 | `venv/` | Shared Python venv. Install with root `requirements.txt`. | — |
 
-`chat1_protocol/` and `chat2_papers/` each own their own folder; neither
-modifies the other's files.
+Each project folder owns its own files; none of them modify another's.
 
 ## Hazard: the `data/` junctions
 

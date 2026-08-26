@@ -50,3 +50,16 @@ touching LOS or decompensation.
 
 Flag immediately: any task needing more than light fine-tuning (new output
 head), or compute approaching the $50 ceiling.
+
+## Pod-switch monitor
+
+`finetune_mortality.py` (and every new script in this project) calls
+`watch_pod()` from `../pod_monitor.py` right before the data-loading phase
+starts. It runs a background thread that watches `nvidia-smi` for the life
+of the process and prints a loud, all-caps banner in either direction:
+sustained GPU idle (data loading/parsing on an expensive pod — switch down)
+or sustained GPU activity resuming after idle (training actually started —
+switch back up). No-ops safely if there's no GPU. Add the same two lines
+(`sys.path.insert(0, _REPO_ROOT)` + `from pod_monitor import watch_pod;
+watch_pod(verbose=True)`) to every new script in this project, placed
+before whichever step loads the datasets.

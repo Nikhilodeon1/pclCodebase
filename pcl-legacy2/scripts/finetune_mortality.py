@@ -27,16 +27,26 @@ import argparse
 import json
 import logging
 import os
+import pickle
 import sys
 import time
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+
+# This script only ever loads production-scale pretrained checkpoints
+# (results_lambda17/ckpt, d_model=256/6 layers). TEST_MODE changes the model
+# architecture itself (d_model=64/2 layers), not just data volume — running
+# with it on doesn't fail fast, it silently builds an incompatible model and
+# only errors after both full datasets have already been read from disk.
+# Must be set before ANY `from config import ...` anywhere in this process.
+os.environ["PCL_TEST_MODE"] = "0"
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _LEGACY2_ROOT = os.path.dirname(_HERE)
 _REPO_ROOT = os.path.dirname(_LEGACY2_ROOT)
 _CHAT1 = os.path.join(_REPO_ROOT, "chat1_protocol")
 sys.path.insert(0, _CHAT1)
+sys.path.insert(0, _REPO_ROOT)  # for pod_monitor.py, shared across all PCL sub-projects
 
 # Where the real URTC-era pretrained encoders live — confirmed on the pod
 # (13MB each, full-scale, task=sepsis pretraining objective; pretraining
@@ -49,12 +59,23 @@ PRETRAIN_CKPT_DIR = os.environ.get(
 
 OUT_DIR = os.path.join(_LEGACY2_ROOT, "results", "mortality")
 FT_CKPT_DIR = os.path.join(OUT_DIR, "ckpt")
+CACHE_DIR = os.path.join(OUT_DIR, "cache")
 
 TASK = "mortality_hospital"
-SITE_DIRS = {"mimic": None, "eicu": None}  # filled after config import (needs env vars set first)
 
 
 def _load_site(site, fraction, seed):
+    """Cached: the full MIMIC/eICU CSV read takes minutes and this script is
+    invoked up to 18 times across the sweep (each site is source in 9 of
+    them, target in the other 9) — without a cache every run re-pays that
+    cost in pure CPU-bound GPU-pod idle time."""
+    os.makedirs(CACHE_DIR, exist_ok=True)
+    cache_path = os.path.join(CACHE_DIR, f"{site}_frac{fraction}.pkl")
+    if os.path.exists(cache_path):
+        logging.info(f"[CACHE] Loading {site} samples from {cache_path}")
+        with open(cache_path, "rb") as fp:
+            return pickle.load(fp)
+
     from src.data.mimic4 import load_mimic4
     from src.data.eicu import load_eicu
     from config import MIMIC_DIR, EICU_DIR
@@ -65,6 +86,14 @@ def _load_site(site, fraction, seed):
         samples, _ = load_eicu(EICU_DIR, fraction=fraction, seed=seed)
     else:
         raise ValueError(site)
+
+    try:
+        with open(cache_path, "wb") as fp:
+            pickle.dump(samples, fp, protocol=pickle.HIGHEST_PROTOCOL)
+        logging.info(f"[CACHE] Saved {site} samples ({len(samples)}) -> {cache_path}")
+    except Exception as e:
+        logging.warning(f"[CACHE] Could not write {site} cache: {e}")
+
     return samples
 
 
@@ -93,19 +122,35 @@ def main():
     os.makedirs(OUT_DIR, exist_ok=True)
     os.makedirs(FT_CKPT_DIR, exist_ok=True)
 
+    from pod_monitor import watch_pod
+    watch_pod(verbose=True)  # loud reminder to switch pods if GPU sits idle
+                              # during the data-load phase below, or if you're
+                              # still on a cheap pod once training starts
+
     import torch
     from torch.utils.data import DataLoader
-    from config import BATCH_SIZE, NUM_WORKERS, PIN_MEMORY
+    from config import BATCH_SIZE, NUM_WORKERS, PIN_MEMORY, TEST_MODE, D_MODEL, N_LAYERS
     from config import FINETUNE_EPOCHS as _CFG_FT_EPOCHS
     from src.baselines import fresh_model
     from src.data.dataset import ICUDataset, make_patient_split_loaders
     from src.eval.evaluate_utils import evaluate_model, run_finetuning
     from src.training.train_utils import load_state_dict_flexible
 
+    # Fail in <1s, not after loading two full datasets: the real checkpoints
+    # are always d_model=256/6 layers. Anything else can't load them.
+    if TEST_MODE or D_MODEL != 256 or N_LAYERS != 6:
+        raise RuntimeError(
+            f"config resolved to TEST_MODE={TEST_MODE}, D_MODEL={D_MODEL}, N_LAYERS={N_LAYERS} — "
+            f"incompatible with the production checkpoints in {PRETRAIN_CKPT_DIR}. "
+            "This should be impossible (script forces PCL_TEST_MODE=0); check for another "
+            "PCL_TEST_MODE export shadowing it, or a stale config.py."
+        )
+
     n_epochs = args.epochs if args.epochs is not None else _CFG_FT_EPOCHS
     device = "cuda" if torch.cuda.is_available() else "cpu"
     logging.info(f"Run: method={args.method} source={args.source} target={target} "
-                 f"seed={args.seed} epochs={n_epochs} device={device}")
+                 f"seed={args.seed} epochs={n_epochs} device={device} "
+                 f"D_MODEL={D_MODEL} N_LAYERS={N_LAYERS}")
 
     t0 = time.time()
 
