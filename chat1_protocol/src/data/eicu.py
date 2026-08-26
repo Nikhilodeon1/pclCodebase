@@ -308,7 +308,14 @@ def load_eicu(data_path, fraction=1.0, seed=42, keep_raw=False):
             skipped["no_hemo"] += 1
             continue
 
+        # ICU-UNIT-level death, not hospital-level — kept as-is because chat1_protocol's
+        # already-validated detector results (incl. EXP4 mortality linear probe) depend
+        # on this exact definition. Do NOT redefine this field to fix the mismatch below.
         mortality  = int(pat.get("unitdischargestatus", "") == "Expired")
+        # HOSPITAL-level death, comparable to MIMIC-IV's hospital_expire_flag
+        # (mimic4.py load_stays). Use this, not `mortality`, for any cross-site
+        # in-hospital-mortality task — e.g. pcl-legacy2.
+        mortality_hospital = int(pat.get("hospitaldischargestatus", "") == "Expired")
         los_3d     = int(pat["los_h"] > 72)
         sepsis     = int(sofa_labels.get(int(pid), 0))
         hospital_id = pat.get("hospitalid", 0)
@@ -320,6 +327,7 @@ def load_eicu(data_path, fraction=1.0, seed=42, keep_raw=False):
             "site_id":     3,
             "patient_id":  str(pid),
             "mortality":   mortality,
+            "mortality_hospital": mortality_hospital,
             "los_3d":      los_3d,
             "sepsis":      sepsis,
             "hospital_id": hospital_id,
@@ -346,6 +354,7 @@ def load_eicu(data_path, fraction=1.0, seed=42, keep_raw=False):
             "site_id":     sample["site_id"],
             "patient_id":  sample["patient_id"],
             "mortality":   sample["mortality"],
+            "mortality_hospital": sample["mortality_hospital"],
             "los_3d":      sample["los_3d"],
             "hospital_id": sample.get("hospital_id", 0),
             "unit_type":   sample.get("unit_type", "eICU_Unknown"),

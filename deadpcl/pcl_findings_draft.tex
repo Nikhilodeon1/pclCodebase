@@ -1,0 +1,523 @@
+% use the "wcp" class option for workshop and conference
+% proceedings
+%\documentclass[gray]{jmlr} % test grayscale version
+%\documentclass[tablecaption=bottom]{jmlr}% journal article
+\documentclass[pmlr,twocolumn,10pt]{jmlr} % W&CP article
+
+% REQUIRED: select your submission track. Use one of:
+  %   proceedings, findings, demo, perspective
+  % Leaving the argument empty (\mlhtrack{}) compiles but shows a red
+  % "please specify the submission track" warning in the page header.
+  % Removing this line entirely raises a "No ML4H track specified" class error.
+  % NOTE: keep \mlhtrack{...} BEFORE the \iffinal / \ifmlhneedspmlr blocks below —
+  % those conditionals depend on the flags this command sets.
+% DECIDED 2026-08-24: Findings (4pp), not Proceedings. Re-checked the
+% "auto-cascade" reasoning against the live CFP: decisions for both tracks
+% release simultaneously (Oct 22) and both get the same Oct 5-12 rebuttal
+% window, so Proceedings carries no actual timeline advantage -- the earlier
+% "strictly dominant" framing was wrong on that point. What's left is a real
+% fit question: Proceedings wants "high technical sophistication," Findings
+% wants "new insights, valuable resources, or exciting preliminary
+% directions." A two-test negative result on one task and one architecture
+% is a clean Findings paper, not a Proceedings one, and it's unclear whether
+% an auto-cascaded submission gets a fresh Findings-appropriate review or
+% just carries over Proceedings reviewers' scores against the wrong bar.
+% Submitting directly to Findings avoids that risk entirely. NOTE: every
+% section below was drafted with an 8pp budget in mind and needs to compress
+% by roughly half -- see the per-section space notes added at fix-in-place
+% time. "Lessons for the Field" is now a CANDIDATE FOR MERGING into
+% Section~\ref{sec:confounds} at prose time rather than standing alone.
+\mlhtrack{findings}
+
+\newif\iffinal
+\finalfalse  % toggle this flag for initial submission
+% \finaltrue  % toggle this flag for camera-ready version after acceptance
+
+\iffinal
+    % For Proceedings and Perspective tracks (published in PMLR), replace XXX below
+    % with the specific PMLR volume number sent to you before the camera-ready submission.
+    \ifmlhneedspmlr
+      \jmlrvolume{XXX}
+      \jmlryear{2026}
+    \fi
+    \ifmlhfindings \jmlrproceedings{}{ML4H 2026 - Findings Track}\fi
+    \ifmlhdemo     \jmlrproceedings{}{ML4H 2026 - Demo Track}\fi
+    \jmlrworkshop{Machine Learning for Health (ML4H) 2026}
+\else
+    % Submitted for review
+    \jmlrproceedings{}{Submitted to ML4H 2026: \mlhtrackname}
+    \jmlrworkshop{Machine Learning for Health (ML4H) 2026}
+\fi
+
+% \usepackage{geometry}
+% \geometry{margins=0.1in,textwidth=7in}
+
+% The following packages will be automatically loaded:
+% amsmath, amssymb, natbib, graphicx, url, algorithm2e
+\urlstyle{same}
+
+%\usepackage{rotating}% for sideways figures and tables
+%\usepackage{longtable}% for long tables
+
+% The booktabs package is used by this sample document
+% (it provides \toprule, \midrule and \bottomrule).
+% Remove the next line if you don't require it.
+
+\usepackage{booktabs}
+% The siunitx package is used by this sample document
+% to align numbers in a column by their decimal point.
+% Remove the next line if you don't require it.
+\usepackage{siunitx}
+
+% The lineno package is required for denoting line
+% numbers for paper review.
+\usepackage[switch]{lineno}
+
+% The following command is just for this sample document:
+\newcommand{\cs}[1]{\texttt{\char`\\#1}}% remove this in your real article
+
+% The following is to recognise equal contribution for authorship
+\newcommand{\equal}[1]{{\hypersetup{linkcolor=black}\thanks{#1}}}
+
+% Define an unnumbered theorem just for this sample document for
+% illustrative purposes:
+\theorembodyfont{\upshape}
+\theoremheaderfont{\scshape}
+\theorempostheader{:}
+\theoremsep{\newline}
+\newtheorem*{note}{Note}
+
+% The optional argument of \title is used in the header
+% Working title -- open to a better one. Short-title arg is what appears in
+% the running header / TOC, must stay under ~50 chars.
+\title[Why a Principled Physiology Constraint Failed]{Plausible, Scrutinized, Dismantled: A Rigorous Negative Result for Physiology-Constrained Cross-Hospital Transfer}
+
+% Anything in the title that should appear in the main title but 
+% not in the article's header or the volume's table of
+% contents should be placed inside \titletag{}
+
+%\title{Title of the Article\titletag{\thanks{Some footnote}}}
+
+
+% Use \Name{Author Name} to specify the name.
+% If the surname contains spaces, enclose the surname
+% in braces, e.g. \Name{John {Smith Jones}} similarly
+% if the name has a "von" part, e.g \Name{Jane {de Winter}}.
+% If the first letter in the forenames is a diacritic
+% enclose the diacritic in braces, e.g. \Name{{\'E}louise Smith}
+
+% \thanks must come after \Name{...} not inside the argument for
+% example \Name{John Smith}\nametag{\thanks{A note}} NOT \Name{John
+% Smith\thanks{A note}}
+
+% Anything in the name that should appear in the title but not in the 
+% article's header or footer or in the volume's
+% table of contents should be placed inside \nametag{}
+
+% Anonymized author list during review (ML4H is double-blind).
+% *** BLOCKING ITEM, 2026-08-24: Rahmani's co-authorship is NOT confirmed. ***
+% Every prior interaction with him on either PCL paper has been mentor/advisor,
+% never co-author. His name is held here as a placeholder ONLY -- do not
+% treat it as settled, do not move to full prose past the Introduction's
+% framing sections until he has given explicit yes/no on co-authorship.
+% CURRENT WORKING ASSUMPTION (pending his answer): NOT onboard. Fallback if
+% he declines or doesn't respond in time: solo byline (Nikhil Tamvada,
+% Independent Researcher) with Rahmani thanked in \acks{} instead.
+% De-anonymize only in the camera-ready version if accepted; keep
+% "Anonymous Author(s)" for every review-stage submission regardless of how
+% this resolves.
+\author{Anonymous Author(s)}
+
+% Two authors with the same address
+% \author{%
+%  \Name{Author Name1\nametag{\thanks{A note}}} \Email{abc@sample.com}\and
+%  \Name{Author Name2} \Email{xyz@sample.com}\\
+%  \addr Address
+% }
+
+% Three or more authors with the same address:
+% \author{%
+%  \Name{Author Name1} \Email{an1@sample.com}\\
+%  \Name{Author Name2} \Email{an2@sample.com}\\
+%  \Name{Author Name3} \Email{an3@sample.com}\\
+%  \Name{Author Name4} \Email{an4@sample.com}\\
+%  \Name{Author Name5} \Email{an5@sample.com}\\
+%  \Name{Author Name6} \Email{an6@sample.com}\\
+%  \Name{Author Name7} \Email{an7@sample.com}\\
+%  \Name{Author Name8} \Email{an8@sample.com}\\
+%  \Name{Author Name9} \Email{an9@sample.com}\\
+%  \Name{Author Name10} \Email{an10@sample.com}\\
+%  \Name{Author Name11} \Email{an11@sample.com}\\
+%  \Name{Author Name12} \Email{an12@sample.com}\\
+%  \Name{Author Name13} \Email{an13@sample.com}\\
+%  \Name{Author Name14} \Email{an14@sample.com}\\
+%  \addr Address
+% }
+
+% % Authors with different addresses and equal first authors:
+% \author{%
+% \Name{First Author 1}\equal{These authors contributed equally} \Email{abc@sample.com}\\
+% \addr University X, Country 1
+% \AND
+% % footnotemark[1] is to refer to the \equal footnote
+% \Name{First Author 2}\footnotemark[1] \Email{def@sample.com}\\
+% \addr University Y, Country 2
+% \AND
+% \Name{Last Author} \Email{ghi@sample.com}\\
+% \addr University Z, Country 3
+% }
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%% Remove the \linenumbers in the final version %%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\linenumbers % Activate line numbering
+
+\begin{document}
+
+\maketitle
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%% FULL PROSE, 2026-08-24. Numbers sourced from                  %%%%%
+%%%%% _archive/pcl_original_draft/fmain_type2.tex (original result)  %%%%%
+%%%%% and chat2_papers/paper/build_urtc.py (corrected result, all    %%%%%
+%%%%% five-confound text, IRM/XGBoost provenance). Byline still      %%%%%
+%%%%% pending Rahmani's answer -- see \author comment above; nothing %%%%%
+%%%%% below depends on how that resolves except \acks.              %%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\ifmlhdemo\else
+\begin{abstract}
+Physiology-constrained pretraining does not improve cross-hospital sepsis
+prediction. A well-motivated hypothesis -- that penalizing violations of
+known physiological relationships during masked-value pretraining of a
+clinical time-series transformer would yield representations that transfer
+better across hospitals than an unconstrained baseline -- initially appeared
+confirmed: the constrained model beat empirical risk minimization (ERM) at
+every held-out site. Systematic re-evaluation traced the entire apparent
+gain to five identifiable evaluation confounds. Correcting all five reverses
+the result: the constrained model falls below ERM at every site, a plain
+gradient-boosted-tree baseline on aggregate features matches or beats both
+neural methods, and invariant risk minimization with 30 real hospital
+environments also fails to improve on ERM, ruling out an
+insufficient-environment explanation. Run-to-run seed variance of 4 to 7
+AUROC points exceeds most of the originally reported effect sizes. The
+negative result also holds under a second, independently designed test: a
+label-free model-selection criterion built on the same physiological signal
+fails to reliably outperform a simple unsupervised baseline. We report each
+confound mechanistically and in generalizable terms, so a reader building a
+different domain-knowledge-constrained clinical method can recognize the
+same traps before publishing them.
+\end{abstract}
+\begin{keywords}
+physiology-constrained learning, negative results, cross-hospital
+generalization, evaluation confounds, clinical machine learning,
+reproducibility
+\end{keywords}
+\fi
+
+\ifmlhneedsstatements
+\paragraph*{Data and Code Availability}
+All experiments use three publicly available, de-identified,
+credentialed-access ICU databases: the PhysioNet/Computing in Cardiology
+Challenge 2019 dataset \citep{reyna2020early}, MIMIC-IV
+\citep{johnson2023mimiciv}, and the eICU Collaborative Research Database
+\citep{pollard2018eicu}. Code is not being made publicly available at this
+time.
+
+\paragraph*{Institutional Review Board (IRB)}
+This work is a secondary analysis of pre-existing, de-identified,
+credentialed-access datasets already approved for secondary research use
+under their respective data use agreements. No new human-subjects data was
+collected, and no additional IRB approval was required.
+\fi
+
+\section{Introduction}
+\label{sec:intro}
+
+Clinical machine learning models trained at one hospital routinely lose
+accuracy when deployed at another, and the consequences are not
+hypothetical. An external validation of a proprietary sepsis prediction
+model widely deployed across US hospitals found an AUROC of 0.63, a
+sensitivity of 33\%, and a positive predictive value of 12\% at a single
+academic medical center -- well below the vendor's reported performance --
+contributing to the model's deactivation at that site
+\citep{wong2021external}.
+
+This paper tests a specific, principled response to that problem:
+physiology-constrained learning (PCL), which augments masked-value
+pretraining of a clinical time-series transformer with differentiable
+penalties for violating known physiological relationships among
+simultaneously measured variables. The premise follows the Independent
+Causal Mechanisms principle \citep{scholkopf2021toward}: relationships such
+as the mean arterial pressure identity or the Henderson-Hasselbalch equation
+hold at every hospital regardless of local measurement device, analyzer
+calibration, or ordering practice, so a representation constrained to
+respect them should depend less on site-specific artifacts than one that is
+not. This is not a strawman hypothesis; it is the response a careful
+practitioner reaches for when asked to build a clinical model that
+generalizes across sites, and it is the hypothesis an earlier version of
+this investigation set out to confirm.
+
+Our contribution is not the claim that this hypothesis failed; it is a
+complete, rigorous diagnostic accounting of why a principled hypothesis
+produced a false positive convincing enough to submit, general enough that a
+reader building a different domain-knowledge-constrained method can
+recognize the same traps in their own pipeline before they reach
+publication. An earlier version of this investigation was submitted
+elsewhere and withdrawn after our own follow-up investigation uncovered the
+confounds this paper documents; we report that investigation in full here.
+
+\section{Method}
+\label{sec:method}
+
+PCL pretrains a six-layer clinical time-series transformer ($d{=}256$, 8
+heads, $\sim$3.2M parameters) on 48-hour, hourly-binned ICU windows using a
+masked-value prediction objective, following the general masked-pretraining
+paradigm \citep{vaswani2017attention,devlin2019bert}. The training objective
+is $L = L_{\mathrm{mask}} + \lambda L_{\mathrm{phys}}$, where
+$L_{\mathrm{phys}}$ averages differentiable residuals on three physiological
+relations -- an $L_1$ penalty on the mean arterial pressure identity and
+squared-error penalties on the Henderson-Hasselbalch and Severinghaus
+equations -- applied only at timesteps where all required variables were
+observed and at least one was masked, so the penalty must be satisfied by
+imputation from cross-variable structure rather than by copying the input.
+Models are trained on PhysioNet Site A and evaluated zero-shot on PhysioNet
+Site B, MIMIC-IV, and eICU-CRD on the task of sepsis onset prediction.
+
+\section{The Initial, Misleading Result}
+\label{sec:initial}
+
+Table~\ref{tab:initial} reports the original, first-pass result: PCL appears
+to beat every baseline at every held-out site, with the margin growing with
+distributional distance -- +6.4 percentage points at Site B, +10.1 at
+MIMIC-IV, +8.4 at eICU -- and PCL is the best method in every one of three
+seeds at every site. The result also passed a constraint-randomization
+ablation (real physiological constraints outperformed shuffled,
+wrong-equation, and noise-injected variants, with the two most-corrupted
+variants falling below unconstrained ERM) and a measurement-noise robustness
+check (PCL's AUROC degraded less than ERM's under injected sensor bias).
+Nothing about the result looked fragile from any angle tried at the time;
+that is precisely what makes the diagnosis in Section~\ref{sec:confounds}
+worth reporting in full.
+
+\begin{table}[htbp]
+\floatconts
+  {tab:initial}%
+  {\caption{The original, uncorrected result: zero-shot cross-hospital sepsis
+   AUROC, mean over 3 seeds. PCL appears to beat every baseline at every
+   held-out site. This result does not survive Section~\ref{sec:confounds}
+   and is reported here only to show how convincing it looked.}}%
+  {\begin{tabular}{lcccc}
+  \toprule
+  Method & Source & Site B & MIMIC-IV & eICU \\
+  \midrule
+  ERM & 0.823 & 0.697 & 0.582 & 0.541 \\
+  DRO & 0.778 & 0.683 & 0.612 & 0.604 \\
+  IRM$^\dagger$ & --- & 0.675 & --- & --- \\
+  \textbf{PCL} & \textbf{0.865} & \textbf{0.761} & \textbf{0.682} & \textbf{0.626} \\
+  \bottomrule
+  \end{tabular}}
+\end{table}
+[$^\dagger$IRM: single seed, Site B only, $k{=}3$ care-unit environments.
+Margins as originally reported: +6.4pp Site B, +10.1pp MIMIC-IV, +8.4pp eICU.]
+
+\section{The Five Confounds}
+\label{sec:confounds}
+
+Each confound below is stated mechanistically and in terms general enough
+that a reader building a different domain-knowledge-constrained method can
+check their own pipeline against it; each ends with the generalized lesson.
+
+\subsection{Label-Definition Shift}
+Training labels followed the clinical Sepsis-3 consensus definition
+\citep{singer2016sepsis3}, while external evaluation on MIMIC-IV and eICU
+originally used administrative ICD-code-derived sepsis labels. Clinical and
+claims-based sepsis definitions are known to diverge substantially
+\citep{rhee2017incidence}, so cross-site AUROC differences conflated genuine
+distribution shift with a change in the definition of the outcome itself.
+We corrected this by re-deriving Sepsis-3 directly via SOFA scoring anchored
+to a suspected-infection window, following the standard reference
+implementation \citep{seymour2016assessment}, yielding sepsis prevalence of
+30.9\% on MIMIC-IV and 8.8\% on eICU. \textbf{Lesson:} any cross-site
+comparison must confirm the outcome definition, not only the input
+distribution, is held fixed across sites.
+
+\subsection{Pretraining Data Leakage Disguised as Zero-Shot Transfer}
+PCL's masked-value pretraining used unlabeled data from all four sites,
+while ERM's pretraining used source-site data only. Although pretraining is
+self-supervised and touches no labels, exposure to target-site inputs during
+pretraining still breaks the zero-shot premise the comparison depends on:
+PCL had, in effect, already seen the deployment distribution.
+\textbf{Lesson:} ``no labels touched'' is not the same guarantee as ``no
+target data touched''; a zero-shot claim must audit every stage of
+training, not only the labeled fine-tuning stage.
+
+\subsection{OOD-Contaminated Hyperparameter Selection}
+The constraint weight $\lambda$, which strongly affects cross-hospital
+performance, was originally chosen using AUROC on a held-out target site
+rather than on source-domain validation data, so the reported zero-shot
+numbers were selected with knowledge of the test distribution they were
+meant to predict. \textbf{Lesson:} a hyperparameter is only as zero-shot as
+the data used to select it; auditing final-model performance is not
+sufficient if the selection procedure that produced that model touched
+target data.
+
+\subsection{Partial Circularity in the Severinghaus Constraint}
+PhysioNet does not record arterial oxygen partial pressure (PaO2) directly;
+the released dataset reconstructs it from oxygen saturation by inverting the
+Severinghaus equation -- the same relation PCL's constraint penalizes the
+model for violating. The constraint's training-time supervision was
+therefore partly self-referential: it could be satisfied, in part, by
+recovering a value the data-generating process had already computed from the
+constraint's own equation. \textbf{Lesson:} before enforcing a
+domain-knowledge constraint, audit whether any of its input variables were
+themselves derived by assuming that constraint; a preprocessing pipeline can
+silently manufacture the invariance a model is later credited with
+discovering.
+
+\subsection{Measurement-Composition Artifact in the Aggregate Violation Score}
+The aggregate physiological violation score averages whichever of the three
+constraints happen to be computable at a given timestep, and constraint
+availability is highly uneven and site-dependent -- for instance,
+bicarbonate is charted in 8.1\% of Site A stay-hours versus 0.16\% at Site
+B, a fifty-fold difference driven by local lab-ordering practice, not
+physiology. Because the sparser constraints also occupy a different residual
+scale than the dense ones, a site's aggregate mean partly tracks which labs
+are ordered there rather than any physiological difference --
+reproducible on raw data with no model involved. \textbf{Lesson:} an
+aggregate score over heterogeneously-available components is a composition
+statistic before it is anything else; decompose it before reading a
+cross-site difference in it as a physiological effect.
+
+Formal automated detectors for these five failure modes are the subject of a
+separate, in-progress companion paper by the same author, not yet complete
+or peer-reviewed; we do not cite it as an established tool here.
+
+\section{The Corrected Result}
+\label{sec:corrected}
+
+With all five confounds addressed, PCL falls below ERM at every site
+(Table~\ref{tab:corrected}), alongside a group-distributionally-robust
+baseline \citep{sagawa2020distributionally}. Two further findings support
+that this is a
+genuine negative result rather than an artifact of the correction itself.
+First, a gradient-boosted tree \citep{chen2016xgboost} trained on simple
+per-stay summary statistics matches or exceeds both neural methods at every
+external site (0.754 / 0.654 / 0.660 versus ERM's 0.701 / 0.649 / 0.592 and
+PCL's 0.655 / 0.622 / 0.572), which further questions whether the
+transformer architecture is earning its complexity here. Second, invariant
+risk minimization \citep{arjovsky2019invariant} with 30 real hospital
+environments drawn from eICU, evaluated in-distribution within eICU rather
+than zero-shot, also fails to beat its own ERM baseline (0.788 versus
+0.792) -- ruling out an insufficient-environment-count explanation for
+IRM's known low-$k$ failure regime \citep{rosenfeld2021risks}, on the same
+corrected pipeline; this in-distribution comparison uses its own ERM
+baseline and is not directly comparable to this table's zero-shot eICU row.
+Finally, run-to-run variability across seeds reached 4 to 7 AUROC points on
+this pipeline, exceeding most of the differences originally reported as
+method effects in Table~\ref{tab:initial}: a single-seed comparison at this
+scale is not informative regardless of how large the claimed gain looks.
+
+\begin{table}[htbp]
+\floatconts
+  {tab:corrected}%
+  {\caption{Corrected cross-hospital sepsis AUROC, mean over 3 seeds, all
+   five confounds addressed. PCL is now below ERM at every site.}}%
+  {\begin{tabular}{lcccc}
+  \toprule
+  Method & Source & Site B & MIMIC-IV & eICU \\
+  \midrule
+  ERM & 0.818 & 0.701 & 0.649 & 0.592 \\
+  PCL & 0.798 & 0.655 & 0.622 & 0.572 \\
+  Group DRO & 0.822 & 0.717 & 0.688 & 0.628 \\
+  XGBoost & --- & 0.754 & 0.654 & 0.660 \\
+  \bottomrule
+  \end{tabular}}
+\end{table}
+
+\section{Beyond Prediction Accuracy}
+\label{sec:beyond}
+
+The same physiological signal was also tested as a label-free criterion for
+selecting the constraint weight without target labels -- an independently
+designed test, since a selection criterion can fail even when the
+underlying representation does not, and vice versa. In prior work by the
+same author, reconstruction error on unlabeled target data reduced mean
+selection regret from 0.052 to 0.012 relative to source-domain validation,
+while the physiology-violation criterion evaluated alongside it did not
+consistently outperform this simple unsupervised baseline
+\citep{tamvada2026urtc}. For the full selection-criterion comparison and the
+validation-failure diagnosis motivating it, see that work; we do not
+reproduce its tables here.
+
+A calibration or conformal-prediction-coverage test was considered but is
+not included here: no such artifact was located in this codebase at the
+time of writing, and we chose not to report a number we could not verify.
+
+\section{Limitations}
+\label{sec:limitations}
+
+This is a case study in how one principled domain-knowledge constraint
+failed on one task and one architecture; it is not a universal claim that
+domain-knowledge constraints cannot improve cross-hospital transfer. All
+experiments use a single clinical task (sepsis onset prediction) and a
+single transformer-based architecture and pretraining objective; whether the
+same confounds recur for other tasks, other architectures, or other
+domain-knowledge constraints is untested. Three random seeds is a small
+sample for a variance estimate, though the seed-variance finding itself
+(Section~\ref{sec:corrected}) is the point of that measurement, not a
+caveat to it.
+
+% NOTE 2026-08-24: if Rahmani declines/doesn't respond, add a second
+% acknowledgment sentence here thanking him for advisory input (fallback
+% plan noted at the \author block above). Currently dataset-thanks only.
+%
+% FIX 2026-08-24, found by compiling: the template's own instruction says
+% acknowledgments "should only appear in the camera-ready version of the
+% paper if it is accepted," but \acks (jmlr.cls:595, just
+% \section*{Acknowledgments}#1) has no internal gating on the \iffinal
+% toggle already defined in the preamble -- so left unconditional, it
+% renders during review too, eating page-limit-relevant space it isn't
+% supposed to use. Gating it here is also what fixed a real Acknowledgments/
+% References layout collision on page 4 of the compiled proxy: with \acks
+% removed from the review-stage page count, everything before References
+% now has room to breathe. Toggle \finaltrue (top of file) to see it.
+\iffinal
+\acks{We thank the maintainers of PhysioNet, MIMIC-IV, and eICU-CRD for
+making these datasets available for secondary research use.}
+\fi
+
+\bibliography{ref}
+
+% deadpcl/ref.bib still needs to be created (does not exist yet -- \bibliography
+% will fail to resolve citations until it does). Every \citep/\citet key used
+% above, all independently verified (see chat transcript 2026-08-24 for
+% source of each), needed as a bibitem:
+%   wong2021external        - Wong et al., JAMA Intern Med 181(8):1065-1070, 2021
+%   scholkopf2021toward      - Scholkopf et al., Proc. IEEE 109(5):612-634, 2021
+%   singer2016sepsis3        - Singer et al., JAMA 315(8):801-810, 2016
+%   seymour2016assessment    - Seymour et al., JAMA 315(8):762-774, 2016
+%   rhee2017incidence        - Rhee et al., JAMA 318(13):1241-1249, 2017
+%   reyna2020early           - Reyna et al., Crit. Care Med. 48(2):210-217, 2020
+%   johnson2023mimiciv       - Johnson et al., Sci. Data 10(1), 2023
+%   pollard2018eicu          - Pollard et al., Sci. Data 5, 2018
+%   vaswani2017attention     - Vaswani et al., NeurIPS 2017
+%   devlin2019bert           - Devlin et al., NAACL-HLT 2019, pp. 4171-4186
+%   chen2016xgboost          - Chen & Guestrin, ACM SIGKDD 2016, pp. 785-794
+%   arjovsky2019invariant    - Arjovsky et al., arXiv:1907.02893, 2019
+%   sagawa2020distributionally - Sagawa et al., ICLR 2020
+%   rosenfeld2021risks       - Rosenfeld et al., ICLR 2021
+%   tamvada2026urtc          - SELF-CITATION, this author's URTC paper,
+%                              "When Validation Lies: Diagnosing and Fixing
+%                              Model Selection Failures Under Real Hospital
+%                              Shift," submitted -- exact venue/year string
+%                              for the bibitem needs confirming once its own
+%                              submission status is final.
+%
+% The confound-detection paper is deliberately NOT a \citep in this draft --
+% it has no formal title yet (chat1_protocol/README.md describes it only as
+% "a new methods paper"), so it's referenced in prose only
+% (Section~\ref{sec:confounds}'s closing sentence) rather than invented as a
+% bibitem. Add a real citation only once that paper has an actual title.
+
+\end{document}

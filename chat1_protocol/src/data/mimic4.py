@@ -190,6 +190,8 @@ def load_mimic4(data_path, fraction=1.0, seed=42, keep_raw=False):
             skipped["no_hemo"] += 1
             continue
 
+        # HOSPITAL-level death (admission-level flag). eICU's equivalent field is
+        # `mortality_hospital`, NOT `mortality` (which is ICU-unit-level there) — see eicu.py.
         mortality = int(stay["hospital_expire_flag"]) if pd.notna(stay["hospital_expire_flag"]) else 0
         los_3d    = int(stay["los_h"] > 72)
         sepsis    = int(sofa_labels.get(int(stay["stay_id"]), 0))
@@ -201,6 +203,11 @@ def load_mimic4(data_path, fraction=1.0, seed=42, keep_raw=False):
             "stay_id":       stay["stay_id"],
             "subject_id":    stay["subject_id"],
             "mortality":     mortality,
+            # Alias, not a distinct value: MIMIC's `mortality` is already hospital-level,
+            # so this equals it exactly. Exists so callers can use one task_name
+            # ("mortality_hospital") across both MIMIC and eICU and get the
+            # hospital-level field from both, instead of eICU's unit-level default.
+            "mortality_hospital": mortality,
             "los_3d":        los_3d,
             "sepsis":        sepsis,
             "first_careunit": stay.get("first_careunit", ""),
@@ -229,6 +236,7 @@ def load_mimic4(data_path, fraction=1.0, seed=42, keep_raw=False):
             "subject_id":    sample["subject_id"],
             "patient_id":    str(sample["stay_id"]),
             "mortality":     sample["mortality"],
+            "mortality_hospital": sample["mortality_hospital"],
             "los_3d":        sample["los_3d"],
             "first_careunit": sample["first_careunit"],
             "unit_type":     sample.get("first_careunit", "MIMIC_Unknown"),

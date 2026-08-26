@@ -39,6 +39,10 @@ class ICUDataset(Dataset):
                 "patient_id": s.get("patient_id", ""),
                 "stay_id": s.get("stay_id", 0),
                 "mortality": _t(s.get("mortality", 0), torch.float32),
+                # Hospital-level mortality, comparable across MIMIC-IV and eICU-CRD.
+                # `mortality` above is unit-level for eICU, hospital-level for MIMIC —
+                # do NOT use it for cross-site mortality tasks. See eicu.py/mimic4.py.
+                "mortality_hospital": _t(s.get("mortality_hospital", 0), torch.float32),
                 "los_3d": _t(s.get("los_3d", 0), torch.float32),
                 "env_id": _t(s["site_id"], torch.long),
                 "hospital_id": _t(s.get("hospital_id", 0), torch.long),
