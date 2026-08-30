@@ -245,6 +245,39 @@ MIMIC-specific and axis-specific — it is the window-vs-single-point axis on on
 database, not a general property of the detector or of the method. Keep that
 contrast adjacent to the finding wherever it appears.
 
+## Finding: pre-registration stopped an ungrounded case from deciding a variant
+
+Belongs in METHODS, as a concrete demonstration that the protocol did work —
+next to the granularity finding, not buried in a limitations list.
+
+Detector 5's pre-registration fixed four cases in advance and marked E3
+(MIMIC-IV vs eICU, a natural cross-database contrast) as DESCRIPTIVE ONLY,
+excluded from every confusion matrix, because we had no independent knowledge of
+whether the two databases truly differ in recording practice — and deciding that
+from the availability ratio would be circular, since that ratio is Variant B's
+entire signal.
+
+At full scale, **E3 turned out to be the ONLY case on which Variants A and B
+disagree.** A stays silent (its composition gate is not met, gap_ratio 0.198); B
+flags (availability 2.4 exceeds its 2.0 gate). Every scored case is identical
+between the two variants.
+
+So had E3 been scored, one case with no ground truth behind it would have decided
+the entire variant question on its own — and it would have decided it in favour
+of the variant we had reason to suspect was fitted. The exclusion was written
+down before any external number existed, for reasons that had nothing to do with
+this outcome. That is the protocol earning its cost, demonstrably rather than in
+principle.
+
+## Finding: the "share" that was not a share, confirmed at scale
+
+Closure on the `composition_gap_ratio` rename. The quantity was originally named
+and described as a share of the cross-site gap. At demo scale exactly 1 of 5
+cases exceeded 1.0, which read as an edge case. At full scale **4 of 5 exceed
+1.0** (1.266, 1.157, 1.120, 1.414). Reporting it as "composition explains X% of
+the gap" would therefore be wrong in the majority of cases at the scale that
+matters, not in a corner. The rename was not cosmetic.
+
 ## Finding: diagnostics need an explicit UNDECIDABLE state
 
 State this as a contribution in its own right, alongside the aggregation-

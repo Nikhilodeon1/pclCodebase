@@ -103,6 +103,21 @@ the detection floor. That is a sharper statement than "availability-only is
 better", and it is the opposite of what the PhysioNet A/B failure suggested,
 where the composition gate looked like the sole obstacle.
 
+State the demo-versus-full progression exactly this way, because full scale
+strengthened the claim rather than merely repeating it:
+
+> Demo scale suggested the composition gate might OCCASIONALLY limit
+> sensitivity — it bound once, producing the PhysioNet A/B false negative at
+> 0.27 against a 0.30 threshold. Full scale shows it does not limit sensitivity
+> at all: every gap_ratio clears the threshold, the conjunction collapses into
+> availability-only, and **availability is the entire detector**.
+
+This is a real strengthening of the granularity/pairing thesis, not a
+consistency check. At realistic n the detector's behaviour is fully determined
+by one of its two gates, and the other is decorative — which is precisely the
+kind of thing that stays invisible until a diagnostic is examined at the scale
+it will actually be used at.
+
 **Detector 5 does work on data it was not built against.** On eICU with
 controlled ablation it reaches precision 1.00 and FPR 0.00 with a detection
 floor between 50% and 80% ablation, holding across 5 seeds. This stands beside,
