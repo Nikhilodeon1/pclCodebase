@@ -22,6 +22,59 @@ ablation, plus the PhysioNet regression guard. E3 is descriptive and unscored.
     E3 (MIMIC-IV demo vs eICU demo, NOT SCORED): both variants flag,
        availability ratio 3.1, share 0.584
 
+## FULL-SCALE RE-RUN (2026-08-17) — B rejected again, for a stronger reason
+
+Full eICU-CRD (130,446 stays) and full MIMIC-IV (74,607 stays), 5 seeds,
+`detectors/logs/full5.out`. The demo-scale decision below is UNCHANGED, but the
+reason is now different and firmer.
+
+    case                        expected   A flags   B flags   avail    gap_ratio
+    E1 ablation 50%             True         0/5       0/5      1.7      1.266
+    E1 ablation 80%             True         5/5       5/5      3.4      1.157
+    E1 ablation 95%             True         5/5       5/5    240.9      1.120
+    E2 eICU split, no ablation  False        0/5       0/5      1.0      0.371
+    E4 PhysioNet A vs itself    False        0/5       0/5      1.1      1.414
+
+    Variant A (conjunction)        TP=10 FP=0 FN=5 TN=10  prec 1.00  rec 0.67
+    Variant B (availability only)  TP=10 FP=0 FN=5 TN=10  prec 1.00  rec 0.67
+
+    E3 (MIMIC vs eICU, NOT SCORED): A silent, B flags (avail 2.4, gap 0.198)
+
+**A and B are now IDENTICAL on every scored case.** At demo scale B had higher
+recall (0.73 vs 0.60) and the rejection rested on the detection-floor criterion.
+At full scale there is no difference to adjudicate: both first detect at 80%
+ablation, both miss at 50% where the availability ratio is 1.7 against a 2.0
+gate, and both are clean on E2 and E4. B is rejected again, now because it is
+INDISTINGUISHABLE rather than merely not-better.
+
+**The composition gate never binds at full scale, and that is the substantive
+finding.** Every gap_ratio in the table exceeds the 0.30 threshold — 1.266,
+1.157, 1.120, 0.371, 1.414 — so Variant A's conjunction reduces exactly to
+Variant B's availability-only condition. The gate is doing no work anywhere.
+
+This CONFIRMS the demo-scale conclusion that the availability gate, not the
+composition gate, is what limits sensitivity, and strengthens it: at demo scale
+the composition gate was at least binding once (it caused the PhysioNet A/B
+false negative at 0.27 against 0.30). At full scale it binds nowhere. The
+detector's behaviour is entirely determined by `max_avail_ratio > 2.0`.
+
+**Fresh evidence that composition_gap_ratio is not a share.** Four of the five
+cases exceed 1.0 (up to 1.414). At demo scale only E4 did. Reporting this
+quantity as "composition explains X% of the gap" would now be wrong in most
+cases, not just an edge case.
+
+**The only A/B divergence is E3**, which the pre-registration deliberately left
+unscored because its ground truth is unknown. A flags nothing there (gap 0.198
+below the gate); B flags on availability 2.4. That divergence therefore cannot
+and does not enter the decision — which is exactly why E3 was excluded in
+advance.
+
+Consistency check that passed: E4's gap_ratio is 1.414 at both demo and full
+scale, identical to three decimals, because PhysioNet was already the full
+dataset in both runs. Only eICU and MIMIC changed size.
+
+Detection floor is unchanged at 80% ablation.
+
 ## Decision: Variant B is NOT adopted
 
 The pre-registered rule required all three of:
