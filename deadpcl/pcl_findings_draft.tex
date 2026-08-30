@@ -195,12 +195,10 @@ better across hospitals than an unconstrained baseline -- initially appeared
 confirmed: the constrained model beat empirical risk minimization (ERM) at
 every held-out site. Systematic re-evaluation traced the entire apparent
 gain to five identifiable evaluation confounds. Correcting all five reverses
-the result: the constrained model falls below ERM at every site, a plain
+the result: the constrained model falls below ERM at every site, and a plain
 gradient-boosted-tree baseline on aggregate features matches or beats both
-neural methods, and invariant risk minimization with 30 real hospital
-environments also fails to improve on ERM, ruling out an
-insufficient-environment explanation. Run-to-run seed variance of 4 to 7
-AUROC points exceeds most of the originally reported effect sizes. The
+neural methods. Run-to-run seed variance of 4 to 7 AUROC points exceeds most
+of the originally reported effect sizes. The
 negative result also holds under a second, independently designed test: a
 label-free model-selection criterion built on the same physiological signal
 fails to reliably outperform a simple unsupervised baseline. We report each
@@ -221,8 +219,18 @@ All experiments use three publicly available, de-identified,
 credentialed-access ICU databases: the PhysioNet/Computing in Cardiology
 Challenge 2019 dataset \citep{reyna2020early}, MIMIC-IV
 \citep{johnson2023mimiciv}, and the eICU Collaborative Research Database
-\citep{pollard2018eicu}. Code is not being made publicly available at this
-time.
+\citep{pollard2018eicu}. Code -- including the corrected SOFA-based
+label-derivation pipeline and the source-domain-only evaluation pipeline
+central to Section~\ref{sec:confounds} -- will be made available as an
+anonymized repository at the time of submission for review.
+% PRE-SUBMISSION TODO, 2026: this commitment is not yet fulfilled -- an
+% anonymized repo/zip actually needs to exist before submission, per the
+% template's own rule that unanonymized or missing code at submission time
+% is an automatic desk-reject. Needs: the SOFA label-derivation code
+% (chat1_protocol/src/data/sofa_sepsis.py) and the corrected eval pipeline
+% (chat2_papers/paper/build_urtc.py's underlying training/eval code, not
+% the docx-builder script itself), stripped of author-identifying paths
+% and comments, in a standalone anonymized location.
 
 \paragraph*{Institutional Review Board (IRB)}
 This work is a secondary analysis of pre-existing, de-identified,
@@ -281,8 +289,16 @@ squared-error penalties on the Henderson-Hasselbalch and Severinghaus
 equations -- applied only at timesteps where all required variables were
 observed and at least one was masked, so the penalty must be satisfied by
 imputation from cross-variable structure rather than by copying the input.
-Models are trained on PhysioNet Site A and evaluated zero-shot on PhysioNet
-Site B, MIMIC-IV, and eICU-CRD on the task of sepsis onset prediction.
+Models are trained on PhysioNet Site A (10,381 stays, 3.3\% sepsis
+prevalence) and evaluated zero-shot on PhysioNet Site B (14,779 stays,
+2.1\%), MIMIC-IV (74,607 stays, 30.9\%), and eICU-CRD (130,446 stays,
+8.8\%) on the task of sepsis onset prediction. The corrected pipeline
+(Section~\ref{sec:corrected}) uses 17 physiological variables, up from the
+9 used in the original result reported next; the expansion improved
+external transfer for both ERM and PCL and was retained throughout, so
+comparing Table~\ref{tab:initial} against Table~\ref{tab:corrected} is
+comparing two different input representations, not the same model
+re-scored under corrected labels alone.
 
 \section{The Initial, Misleading Result}
 \label{sec:initial}
@@ -383,40 +399,55 @@ bicarbonate is charted in 8.1\% of Site A stay-hours versus 0.16\% at Site
 B, a fifty-fold difference driven by local lab-ordering practice, not
 physiology. Because the sparser constraints also occupy a different residual
 scale than the dense ones, a site's aggregate mean partly tracks which labs
-are ordered there rather than any physiological difference --
-reproducible on raw data with no model involved. \textbf{Lesson:} an
-aggregate score over heterogeneously-available components is a composition
-statistic before it is anything else; decompose it before reading a
-cross-site difference in it as a physiological effect.
-
-Formal automated detectors for these five failure modes are the subject of a
-separate, in-progress companion paper by the same author, not yet complete
-or peer-reviewed; we do not cite it as an established tool here.
+are ordered there rather than any physiological difference. Recomputing
+each site's aggregate with pooled component values, on raw data with no
+model involved, isolates roughly 49\% of the cross-site gap as composition
+artifact and the remaining 51\% as a genuine per-component difference --
+partially, not wholly, artifactual. \textbf{Lesson:} an aggregate score
+over heterogeneously-available components is a composition statistic
+before it is anything else; decompose it before reading a cross-site
+difference in it as a physiological effect.
 
 \section{The Corrected Result}
 \label{sec:corrected}
 
 With all five confounds addressed, PCL falls below ERM at every site
 (Table~\ref{tab:corrected}), alongside a group-distributionally-robust
-baseline \citep{sagawa2020distributionally}. Two further findings support
-that this is a
-genuine negative result rather than an artifact of the correction itself.
-First, a gradient-boosted tree \citep{chen2016xgboost} trained on simple
-per-stay summary statistics matches or exceeds both neural methods at every
-external site (0.754 / 0.654 / 0.660 versus ERM's 0.701 / 0.649 / 0.592 and
-PCL's 0.655 / 0.622 / 0.572), which further questions whether the
-transformer architecture is earning its complexity here. Second, invariant
-risk minimization \citep{arjovsky2019invariant} with 30 real hospital
-environments drawn from eICU, evaluated in-distribution within eICU rather
-than zero-shot, also fails to beat its own ERM baseline (0.788 versus
-0.792) -- ruling out an insufficient-environment-count explanation for
-IRM's known low-$k$ failure regime \citep{rosenfeld2021risks}, on the same
-corrected pipeline; this in-distribution comparison uses its own ERM
-baseline and is not directly comparable to this table's zero-shot eICU row.
-Finally, run-to-run variability across seeds reached 4 to 7 AUROC points on
-this pipeline, exceeding most of the differences originally reported as
-method effects in Table~\ref{tab:initial}: a single-seed comparison at this
-scale is not informative regardless of how large the claimed gain looks.
+baseline \citep{sagawa2020distributionally}. The Source column also moves
+between the two tables for both methods, not only the target sites; this is
+expected. Two changes bundled into the correction affect in-domain fit
+directly: the 9-to-17-variable expansion (Section~\ref{sec:method}) and a
+different $\lambda$-selection procedure (below), so the corrected PCL model
+is a genuinely different trained model, not the same model re-scored.
+
+A gradient-boosted tree \citep{chen2016xgboost} trained on simple per-stay
+summary statistics matches or exceeds both neural methods at every external
+site (0.754 / 0.654 / 0.660 versus ERM's 0.701 / 0.649 / 0.592 and PCL's
+0.655 / 0.622 / 0.572), which further questions whether the transformer
+architecture is earning its complexity here. We separately checked whether
+invariant risk minimization \citep{arjovsky2019invariant} with 30 real
+hospital environments drawn from eICU closes the gap to ERM; it does not,
+but that check turned out not to support any claim about this paper's
+zero-shot setting, for two reasons, and we report it only for completeness.
+First, that comparison is in-distribution within eICU, not zero-shot
+Site-A-to-eICU transfer, so it does not speak to the transfer failure this
+paper is about. Second, the gap it found (0.788 versus its own ERM baseline
+of 0.792, 0.4 percentage points) is smaller than this study's own
+run-to-run seed noise (4 to 7 percentage points, below), so it is not
+distinguishable from noise in the first place. We do not treat this as
+evidence either way.
+
+Run-to-run variability across seeds reached 4 to 7 AUROC points on this
+pipeline, exceeding most of the differences originally reported as method
+effects in Table~\ref{tab:initial}: a single-seed comparison at this scale
+is not informative regardless of how large the claimed gain looks.
+
+The constraint weight $\lambda$ itself was selected by sweeping six
+candidate values and taking the one with the highest AUROC on a held-out
+validation split of the source site (PhysioNet Site A) only -- the same
+split used for every other hyperparameter decision, never a target site.
+This replaces the original selection procedure named in
+Section~\ref{sec:confounds}.
 
 \begin{table}[htbp]
 \floatconts
@@ -441,14 +472,14 @@ scale is not informative regardless of how large the claimed gain looks.
 The same physiological signal was also tested as a label-free criterion for
 selecting the constraint weight without target labels -- an independently
 designed test, since a selection criterion can fail even when the
-underlying representation does not, and vice versa. In prior work by the
-same author, reconstruction error on unlabeled target data reduced mean
-selection regret from 0.052 to 0.012 relative to source-domain validation,
-while the physiology-violation criterion evaluated alongside it did not
-consistently outperform this simple unsupervised baseline
-\citep{tamvada2026urtc}. For the full selection-criterion comparison and the
-validation-failure diagnosis motivating it, see that work; we do not
-reproduce its tables here.
+underlying representation does not, and vice versa. Prior work by the same
+author \citep{tamvada2026urtc} evaluates this directly and finds that the
+physiology-violation criterion does not reliably outperform a simple
+unsupervised baseline (reconstruction error) at this task. That work is
+itself unpublished and under review, so we report only the qualitative
+outcome here rather than its numbers, and do not reproduce its tables; see
+it for the full comparison and the validation-failure diagnosis motivating
+it.
 
 A calibration or conformal-prediction-coverage test was considered but is
 not included here: no such artifact was located in this codebase at the
