@@ -1,4 +1,4 @@
-"""Detector 2 external validation: MIMIC-IV demo (source) -> eICU demo (target).
+"""Detector 2 external validation: MIMIC-IV (source) -> eICU (target).
 
 Detector 2 was built on PhysioNet Site A -> Site B. This runs the same
 diagnostic, the same model and the same paired within-seed analysis on a
@@ -47,6 +47,7 @@ RESULTS = os.path.join(HERE, "results")
 
 
 _POOLS = None
+_POOL_CACHE = None      # optional on-disk cache path, set from --pool-cache
 
 
 def load_pools(verbose=True):
@@ -63,19 +64,45 @@ def load_pools(verbose=True):
     loading once is exactly equivalent to loading per seed.
     """
     global _POOLS
-    if _POOLS is None:
-        import time
-        from config import MIMIC_DIR, EICU_DIR
-        from src.data.mimic4 import load_mimic4
-        from src.data.eicu import load_eicu
+    if _POOLS is not None:
+        return _POOLS
+
+    import pickle
+    import time
+
+    # On-disk cache. The in-process cache above only survives ONE run; a crash
+    # or a parameter change would otherwise repeat a 40-60 minute full-scale
+    # load. Same rule that saved detector 5 hours: wire the cache in before
+    # launching the long job, not after discovering it was needed.
+    if _POOL_CACHE and os.path.exists(_POOL_CACHE):
         t0 = time.time()
-        src_samples, _ = load_mimic4(MIMIC_DIR, fraction=1.0, seed=0)
-        tgt_samples, _ = load_eicu(EICU_DIR, fraction=1.0, seed=0)
-        _POOLS = (src_samples, tgt_samples)
+        with open(_POOL_CACHE, "rb") as fh:
+            _POOLS = pickle.load(fh)
         if verbose:
-            print(f"loaded once in {time.time() - t0:.0f}s: "
-                  f"MIMIC {len(src_samples)} stays, eICU {len(tgt_samples)} "
-                  f"stays (reused for every seed)", flush=True)
+            print(f"pools loaded from cache {_POOL_CACHE} in "
+                  f"{time.time() - t0:.0f}s: MIMIC {len(_POOLS[0])} stays, "
+                  f"eICU {len(_POOLS[1])} stays", flush=True)
+        return _POOLS
+
+    from config import MIMIC_DIR, EICU_DIR
+    from src.data.mimic4 import load_mimic4
+    from src.data.eicu import load_eicu
+    t0 = time.time()
+    src_samples, _ = load_mimic4(MIMIC_DIR, fraction=1.0, seed=0)
+    tgt_samples, _ = load_eicu(EICU_DIR, fraction=1.0, seed=0)
+    _POOLS = (src_samples, tgt_samples)
+    if verbose:
+        print(f"loaded once in {time.time() - t0:.0f}s: "
+              f"MIMIC {len(src_samples)} stays, eICU {len(tgt_samples)} "
+              f"stays (reused for every seed)", flush=True)
+
+    if _POOL_CACHE:
+        os.makedirs(os.path.dirname(_POOL_CACHE) or ".", exist_ok=True)
+        with open(_POOL_CACHE, "wb") as fh:
+            pickle.dump(_POOLS, fh, protocol=pickle.HIGHEST_PROTOCOL)
+        if verbose:
+            print(f"pools cached -> {_POOL_CACHE} "
+                  f"({os.path.getsize(_POOL_CACHE) / 1e9:.2f} GB)", flush=True)
     return _POOLS
 
 
@@ -125,7 +152,14 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--seeds", type=int, default=5)
     ap.add_argument("--epochs", type=int, default=3)
+    ap.add_argument("--pool-cache", default=None,
+                    help="pickle path for the loaded MIMIC/eICU pools; written "
+                         "on first run, reused after, so a rerun skips the "
+                         "40-60 minute full-scale load")
     args = ap.parse_args()
+
+    global _POOL_CACHE
+    _POOL_CACHE = args.pool_cache
 
     from config import TEST_MODE, D_MODEL, N_LAYERS
     if not TEST_MODE:
@@ -133,7 +167,7 @@ def main():
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
     print("=" * 78)
-    print("DETECTOR 2 — external validation, MIMIC-IV demo -> eICU demo")
+    print("DETECTOR 2 — external validation, MIMIC-IV -> eICU")
     print("=" * 78)
     print(f"model d={D_MODEL} layers={N_LAYERS} | device={device} | "
           f"{args.seeds} seeds | {args.epochs} epochs")
