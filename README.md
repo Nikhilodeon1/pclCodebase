@@ -21,7 +21,7 @@ update it there, not just in your head.
 | `chat1_protocol/` | Confound-detection methods paper — five detectors, each validated against known ground truth. Code + data + tests. | [chat1_protocol/README.md](chat1_protocol/README.md) |
 | `chat2_papers/` | The URTC paper (submitted) and the withdrawn NeurIPS draft. No datasets, no compute — self-contained manuscript build. | [chat2_papers/README.md](chat2_papers/README.md) |
 | `pcl-legacy2/` | Cross-task generalization of URTC's selection-criterion finding. GPU/RunPod project, blocked on the pod. | [pcl-legacy2/README.md](pcl-legacy2/README.md) |
-| `deadpcl/` | ML4H Findings negative-results writeup of the original PCL investigation. | [deadpcl/pcl_findings_draft.tex](deadpcl/pcl_findings_draft.tex) |
+| `deadpcl/` | ML4H Findings negative-results writeup of the original PCL investigation. | [deadpcl/README.md](deadpcl/README.md) |
 | `_archive/` | Frozen pre-split pipeline (`run_paper_experiments.py`, old `src/`, old results). Superseded — kept for history only. | [_archive/README.md](_archive/README.md) |
 | `pod_monitor.py` | Shared GPU-idle/active watchdog — import into any GPU-pod script to get a loud switch-pods alert in either direction. See its docstring. | — |
 | `data/` | Shared 455MB dataset (PhysioNet full, eICU-demo, MIMIC-IV demo). | — |

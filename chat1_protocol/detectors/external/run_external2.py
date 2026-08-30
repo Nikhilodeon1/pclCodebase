@@ -46,21 +46,49 @@ HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RESULTS = os.path.join(HERE, "results")
 
 
+_POOLS = None
+
+
+def load_pools(verbose=True):
+    """Load MIMIC and eICU ONCE and cache in-process.
+
+    This used to happen inside build_external, i.e. once PER SEED. At demo
+    scale that was a few seconds wasted; at full scale it is five complete
+    reloads of both databases -- roughly five hours of redundant I/O for data
+    that does not depend on the seed at all.
+
+    It genuinely does not: both loaders are called with fraction=1.0, so their
+    `seed` argument controls only subsampling that is not happening. The seed
+    affects the target PERMUTATION, which is applied per seed below, so
+    loading once is exactly equivalent to loading per seed.
+    """
+    global _POOLS
+    if _POOLS is None:
+        import time
+        from config import MIMIC_DIR, EICU_DIR
+        from src.data.mimic4 import load_mimic4
+        from src.data.eicu import load_eicu
+        t0 = time.time()
+        src_samples, _ = load_mimic4(MIMIC_DIR, fraction=1.0, seed=0)
+        tgt_samples, _ = load_eicu(EICU_DIR, fraction=1.0, seed=0)
+        _POOLS = (src_samples, tgt_samples)
+        if verbose:
+            print(f"loaded once in {time.time() - t0:.0f}s: "
+                  f"MIMIC {len(src_samples)} stays, eICU {len(tgt_samples)} "
+                  f"stays (reused for every seed)", flush=True)
+    return _POOLS
+
+
 def build_external(seed, probe_frac=0.25):
     """(source, leak_pool, probe) datasets for MIMIC -> eICU.
 
-    Source is the whole MIMIC-IV demo cohort every seed: at 117 stays there is
-    nothing to subsample, so the source carries NO split variance and the seed
-    varies only the target-side split. That is a real limitation of the demo
-    data and is reported alongside the result.
+    The source is the whole MIMIC-IV cohort at every seed, so the source
+    contributes NO split variance and the seed varies only the target-side
+    split. Reported alongside the result.
     """
-    from config import MIMIC_DIR, EICU_DIR
-    from src.data.mimic4 import load_mimic4
-    from src.data.eicu import load_eicu
     from src.data.dataset import ICUDataset
 
-    src_samples, _ = load_mimic4(MIMIC_DIR, fraction=1.0, seed=seed)
-    tgt_samples, _ = load_eicu(EICU_DIR, fraction=1.0, seed=seed)
+    src_samples, tgt_samples = load_pools()
 
     rng = np.random.default_rng(seed)
     tgt = [tgt_samples[i] for i in rng.permutation(len(tgt_samples))]

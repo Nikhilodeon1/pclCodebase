@@ -109,6 +109,11 @@ def main():
                      help="Override FINETUNE_EPOCHS (config default is 30 full-scale). "
                           "Use a small value only to sanity-check plumbing, not for real results.")
     ap.add_argument("--overwrite", action="store_true")
+    ap.add_argument("--cache-only", action="store_true",
+                     help="Load + cache both sites' data, then exit before touching the GPU/model. "
+                          "Run this on a cheap CPU pod; the cache lives on the network volume, so "
+                          "switching back to the GPU pod and rerunning without this flag hits it "
+                          "immediately instead of re-reading the full CSVs there.")
     args = ap.parse_args()
 
     target = "eicu" if args.source == "mimic" else "mimic"
@@ -122,10 +127,27 @@ def main():
     os.makedirs(OUT_DIR, exist_ok=True)
     os.makedirs(FT_CKPT_DIR, exist_ok=True)
 
+    # Upfront, not reactive: pod_monitor's idle-GPU banner below only fires
+    # after ~5 min of paying GPU price for CPU-only work. This fires at
+    # process start, before a single row is read, whenever either site isn't
+    # cached yet — the exact situation that cost real money last time.
+    import torch
+    _uncached = [s for s in (args.source, target)
+                 if not os.path.exists(os.path.join(CACHE_DIR, f"{s}_frac{args.fraction}.pkl"))]
+    if _uncached and torch.cuda.is_available():
+        logging.warning(
+            "\n" + "=" * 70 +
+            f"\nSWITCH PODS NOW — about to read {', '.join(_uncached)} from raw CSV, uncached."
+            "\nThis is CPU-only work (minutes) on a GPU-priced pod."
+            "\nCtrl-C, switch to a cheap pod, rerun this exact command with --cache-only,"
+            "\nthen switch back and rerun without it — it'll hit the cache instantly."
+            "\n" + "=" * 70
+        )
+
     from pod_monitor import watch_pod
-    watch_pod(verbose=True)  # loud reminder to switch pods if GPU sits idle
-                              # during the data-load phase below, or if you're
-                              # still on a cheap pod once training starts
+    watch_pod(verbose=True)  # backup: loud reminder if GPU sits idle 5+ min
+                              # anyway (e.g. the warning above was missed), or
+                              # if you're still on a cheap pod once training starts
 
     import torch
     from torch.utils.data import DataLoader
@@ -174,6 +196,14 @@ def main():
     tgt_ds.coverage_report()
     tgt_loader = DataLoader(tgt_ds, batch_size=BATCH_SIZE, shuffle=False,
                              num_workers=NUM_WORKERS, pin_memory=PIN_MEMORY)
+
+    if args.cache_only:
+        logging.info(
+            f"[CACHE-ONLY] Both sites cached in {time.time()-t0:.0f}s. "
+            f"Switch to the GPU pod and rerun without --cache-only to train — "
+            f"it'll hit the cache in {CACHE_DIR} and skip straight to the pretrained-encoder load."
+        )
+        return
 
     # ── Load pretrained encoder (reused as-is, no retraining) ──────────────
     pretrain_path = os.path.join(PRETRAIN_CKPT_DIR, f"{args.method}_pretrained.pt")
