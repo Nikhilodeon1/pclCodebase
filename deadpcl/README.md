@@ -17,26 +17,24 @@ Full rigorous negative-result paper on the original PCL investigation. See
                                                     # Searches the pod for existing
                                                     # per-seed AUROC data behind the
                                                     # paper's "4-7pp" seed-variance
-                                                    # range. Run this FIRST.
+                                                    # range. Free to run any time.
 
-    python scripts/run_confound_ablation.py --confound 2 --seed 42
-    python scripts/run_confound_ablation.py --confound 4 --seed 42
-                                                    # Real pretraining runs.
-                                                    # Reintroduces one evaluation
-                                                    # confound at a time (2 =
-                                                    # pretraining leakage, 4 =
-                                                    # Severinghaus circularity) on
-                                                    # top of the otherwise-corrected
-                                                    # pipeline, for the per-confound
-                                                    # AUROC-drift table. Run seed 42
-                                                    # alone first per confound — its
-                                                    # wall-clock time is the only
-                                                    # real cost estimate before the
-                                                    # other two seeds. ~1-2 H100-hours
-                                                    # total for both confounds x 3
-                                                    # seeds, extrapolated from the
-                                                    # documented ~6h/~30-run full
-                                                    # suite in the withdrawn draft.
+`scripts/run_confound_ablation.py` (per-confound magnitude, external review
+item #7) exists and was verified against the real API (every call matches an
+existing function signature; the confound-4 loss variant reuses an
+already-exercised code path in `chat1_protocol/src/ablations.py`), but is
+**DEFERRED, not planned before submission** — 2026-08-24 decision. Real cost
+came out to ~1 GPU-hour for confound 4 alone but ~8-9 GPU-hours for confound
+2 (its pretraining pool is ~22x larger — all 4 sites pooled vs. source-only),
+call it ~$30 on an H100 SXM pod for both at 3 seeds each. Given real risk
+the result lands inside this study's own 4-7pp seed-noise floor (an
+individual confound's marginal contribution can easily be smaller than the
+noise that already sank the IRM-30 claim) and this is upgrading an
+already-solid paper rather than fixing something broken, skipped as not
+worth the budget. Reflected honestly in the paper's Limitations rather than
+left as a silent gap. Script kept in case the calculus changes (cheaper GPU
+time, more budget, or a reviewer makes it a real ask post-submission) —
+run seed 42 alone per confound first if it's ever revisited.
 
 Both experiment scripts import `../pod_monitor.py` and call `watch_pod()` —
 loud switch-pods alerts either direction, same as pcl-legacy2's scripts. See

@@ -219,10 +219,10 @@ All experiments use three publicly available, de-identified,
 credentialed-access ICU databases: the PhysioNet/Computing in Cardiology
 Challenge 2019 dataset \citep{reyna2020early}, MIMIC-IV
 \citep{johnson2023mimiciv}, and the eICU Collaborative Research Database
-\citep{pollard2018eicu}. Code -- including the corrected SOFA-based
-label-derivation pipeline and the source-domain-only evaluation pipeline
-central to Section~\ref{sec:confounds} -- will be made available as an
-anonymized repository at the time of submission for review.
+\citep{pollard2018eicu}. Code -- the corrected SOFA-based label-derivation
+and source-domain-only evaluation pipeline central to
+Section~\ref{sec:confounds} -- will be released as an anonymized
+repository at submission.
 % PRE-SUBMISSION TODO, 2026: this commitment is not yet fulfilled -- an
 % anonymized repo/zip actually needs to exist before submission, per the
 % template's own rule that unanonymized or missing code at submission time
@@ -251,28 +251,26 @@ academic medical center -- well below the vendor's reported performance --
 contributing to the model's deactivation at that site
 \citep{wong2021external}.
 
-This paper tests a specific, principled response to that problem:
-physiology-constrained learning (PCL), which augments masked-value
-pretraining of a clinical time-series transformer with differentiable
-penalties for violating known physiological relationships among
-simultaneously measured variables. The premise follows the Independent
-Causal Mechanisms principle \citep{scholkopf2021toward}: relationships such
-as the mean arterial pressure identity or the Henderson-Hasselbalch equation
-hold at every hospital regardless of local measurement device, analyzer
-calibration, or ordering practice, so a representation constrained to
-respect them should depend less on site-specific artifacts than one that is
-not. This is not a strawman hypothesis; it is the response a careful
-practitioner reaches for when asked to build a clinical model that
-generalizes across sites, and it is the hypothesis an earlier version of
-this investigation set out to confirm.
+This paper tests a specific, principled response: physiology-constrained
+learning (PCL), which augments masked-value pretraining of a clinical
+time-series transformer with differentiable penalties for violating known
+physiological relationships among simultaneously measured variables. The
+premise follows the Independent Causal Mechanisms principle
+\citep{scholkopf2021toward}: relationships such as the mean arterial
+pressure identity or Henderson-Hasselbalch hold at every hospital
+regardless of local measurement device, calibration, or ordering practice,
+so a representation constrained to respect them should depend less on
+site-specific artifacts. This is not a strawman; it is the response a
+careful practitioner reaches for when building a model that generalizes
+across sites, and the hypothesis an earlier version of this investigation
+set out to confirm.
 
 Our contribution is not the claim that this hypothesis failed; it is a
-complete, rigorous diagnostic accounting of why a principled hypothesis
-produced a false positive convincing enough to submit, general enough that a
-reader building a different domain-knowledge-constrained method can
-recognize the same traps in their own pipeline before they reach
-publication. An earlier version of this investigation was submitted
-elsewhere and withdrawn after our own follow-up investigation uncovered the
+rigorous diagnostic accounting of why a principled hypothesis produced a
+false positive convincing enough to submit, general enough that a reader
+building a different domain-knowledge-constrained method can recognize the
+same traps before publication. An earlier version of this investigation was
+submitted elsewhere and withdrawn after our own follow-up uncovered the
 confounds this paper documents; we report that investigation in full here.
 
 \section{Method}
@@ -294,11 +292,16 @@ prevalence) and evaluated zero-shot on PhysioNet Site B (14,779 stays,
 2.1\%), MIMIC-IV (74,607 stays, 30.9\%), and eICU-CRD (130,446 stays,
 8.8\%) on the task of sepsis onset prediction. The corrected pipeline
 (Section~\ref{sec:corrected}) uses 17 physiological variables, up from the
-9 used in the original result reported next; the expansion improved
-external transfer for both ERM and PCL and was retained throughout, so
-comparing Table~\ref{tab:initial} against Table~\ref{tab:corrected} is
-comparing two different input representations, not the same model
-re-scored under corrected labels alone.
+9 used in the original result reported next -- the eight added (temperature,
+respiratory rate, white blood cell count, lactate, BUN, creatinine,
+potassium, glucose) are standard ICU vitals and routine
+chemistry/hematology, adopted in the same commit as the corrected SOFA
+labeling, not tuned after seeing corrected-pipeline results, so this
+expansion is not itself a sixth confound. It improved external transfer for
+both ERM and PCL and was retained throughout, so Table~\ref{tab:initial}
+versus Table~\ref{tab:corrected} compares two different input
+representations, not the same model re-scored under corrected labels
+alone.
 
 \section{The Initial, Misleading Result}
 \label{sec:initial}
@@ -363,8 +366,8 @@ PCL's masked-value pretraining used unlabeled data from all four sites,
 while ERM's pretraining used source-site data only. Although pretraining is
 self-supervised and touches no labels, exposure to target-site inputs during
 pretraining still breaks the zero-shot premise the comparison depends on:
-PCL had, in effect, already seen the deployment distribution.
-\textbf{Lesson:} ``no labels touched'' is not the same guarantee as ``no
+PCL had, in effect, already seen the deployment distribution. The corrected
+pipeline pretrains PCL source-only, matching ERM. \textbf{Lesson:} ``no labels touched'' is not the same guarantee as ``no
 target data touched''; a zero-shot claim must audit every stage of
 training, not only the labeled fine-tuning stage.
 
@@ -400,10 +403,9 @@ B, a fifty-fold difference driven by local lab-ordering practice, not
 physiology. Because the sparser constraints also occupy a different residual
 scale than the dense ones, a site's aggregate mean partly tracks which labs
 are ordered there rather than any physiological difference. Recomputing
-each site's aggregate with pooled component values, on raw data with no
-model involved, isolates roughly 49\% of the cross-site gap as composition
-artifact and the remaining 51\% as a genuine per-component difference --
-partially, not wholly, artifactual. \textbf{Lesson:} an aggregate score
+each site's aggregate with pooled component values (raw data, no model)
+isolates roughly 49\% of the gap as composition artifact and 51\% as
+genuine -- partially, not wholly, artifactual. \textbf{Lesson:} an aggregate score
 over heterogeneously-available components is a composition statistic
 before it is anything else; decompose it before reading a cross-site
 difference in it as a physiological effect.
@@ -414,22 +416,25 @@ difference in it as a physiological effect.
 With all five confounds addressed, PCL falls below ERM at every site
 (Table~\ref{tab:corrected}), alongside a group-distributionally-robust
 baseline \citep{sagawa2020distributionally}. The Source column also moves
-between the two tables for both methods, not only the target sites; this is
-expected. Two changes bundled into the correction affect in-domain fit
-directly: the 9-to-17-variable expansion (Section~\ref{sec:method}) and a
-different $\lambda$-selection procedure (below), so the corrected PCL model
-is a genuinely different trained model, not the same model re-scored.
+for both methods, not only the targets; expected, since the 9-to-17
+expansion (Section~\ref{sec:method}) and the new $\lambda$ procedure
+(below) make the corrected PCL a genuinely different trained model, not
+the same one re-scored.
 
 A gradient-boosted tree \citep{chen2016xgboost} trained on simple per-stay
 summary statistics matches or exceeds both neural methods at every external
 site (0.754 / 0.654 / 0.660 versus ERM's 0.701 / 0.649 / 0.592 and PCL's
 0.655 / 0.622 / 0.572), which further questions whether the transformer
-architecture is earning its complexity here. We separately checked whether
+architecture is earning its complexity here; it has no Source entry because
+it is used only as an external baseline, never a source-selection
+candidate. Table~\ref{tab:corrected} omits IRM entirely -- unlike its
+$k{=}3$ single-seed appearance in Table~\ref{tab:initial}, no version of it
+was ever run zero-shot cross-hospital. We separately checked whether
 invariant risk minimization \citep{arjovsky2019invariant} with 30 real
 hospital environments drawn from eICU closes the gap to ERM; it does not,
-but that check turned out not to support any claim about this paper's
-zero-shot setting, for two reasons, and we report it only for completeness.
-First, that comparison is in-distribution within eICU, not zero-shot
+but that check turned out not to support any claim about this paper's zero-shot
+setting, for two reasons, and we report it only for completeness. First,
+that comparison is in-distribution within eICU, not zero-shot
 Site-A-to-eICU transfer, so it does not speak to the transfer failure this
 paper is about. Second, the gap it found (0.788 versus its own ERM baseline
 of 0.792, 0.4 percentage points) is smaller than this study's own
@@ -472,32 +477,32 @@ Section~\ref{sec:confounds}.
 The same physiological signal was also tested as a label-free criterion for
 selecting the constraint weight without target labels -- an independently
 designed test, since a selection criterion can fail even when the
-underlying representation does not, and vice versa. Prior work by the same
-author \citep{tamvada2026urtc} evaluates this directly and finds that the
-physiology-violation criterion does not reliably outperform a simple
-unsupervised baseline (reconstruction error) at this task. That work is
-itself unpublished and under review, so we report only the qualitative
-outcome here rather than its numbers, and do not reproduce its tables; see
-it for the full comparison and the validation-failure diagnosis motivating
-it.
+underlying representation does not. Prior work by the same author
+\citep{tamvada2026urtc} finds it does not reliably outperform a simple
+unsupervised baseline (reconstruction error). That work is itself
+unpublished and under review, so we report only the qualitative outcome,
+not its numbers, and do not reproduce its tables; see it for the full
+comparison.
 
-A calibration or conformal-prediction-coverage test was considered but is
-not included here: no such artifact was located in this codebase at the
-time of writing, and we chose not to report a number we could not verify.
+A calibration or conformal-prediction-coverage test was considered but not
+included: no such artifact was recoverable, and we chose not to report an
+unverifiable number.
 
 \section{Limitations}
 \label{sec:limitations}
 
 This is a case study in how one principled domain-knowledge constraint
-failed on one task and one architecture; it is not a universal claim that
-domain-knowledge constraints cannot improve cross-hospital transfer. All
-experiments use a single clinical task (sepsis onset prediction) and a
-single transformer-based architecture and pretraining objective; whether the
-same confounds recur for other tasks, other architectures, or other
-domain-knowledge constraints is untested. Three random seeds is a small
-sample for a variance estimate, though the seed-variance finding itself
-(Section~\ref{sec:corrected}) is the point of that measurement, not a
-caveat to it.
+failed on one task and one architecture, not a universal claim that such
+constraints cannot improve cross-hospital transfer. All experiments use a
+single task (sepsis onset) and a single architecture and pretraining
+objective; whether the same confounds recur elsewhere is untested. Three
+seeds is a small sample for a variance estimate, though the seed-variance
+finding itself (Section~\ref{sec:corrected}) is the point, not a caveat.
+We also did not decompose each confound's individual contribution to the
+Table~\ref{tab:initial}-to-\ref{tab:corrected} gap: isolating one needs
+retraining with it alone reintroduced, and at this study's 4-to-7-point
+seed-noise floor a single confound's effect may not be separable from
+noise, so we report the five jointly rather than rank them.
 
 % NOTE 2026-08-24: if Rahmani declines/doesn't respond, add a second
 % acknowledgment sentence here thanking him for advisory input (fallback
