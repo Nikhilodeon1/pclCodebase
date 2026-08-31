@@ -362,8 +362,9 @@ CIs, including the P(flag)=0.484 headline) were TRANSCRIBED from terminal output
 not read from an archived log. `full1_probe.out` and `full1_bootstrap.out` came
 back empty when copied off the pod, and are not in this repository.
 
-Detectors 2 and 5's full-scale logs (`full2.out`, `full5.out`) exist on the pod
-but have also not landed here yet.
+Detectors 2 and 5 ARE archived: `detectors/logs/full2.out` and
+`detectors/logs/full5.out` are committed, and every figure quoted for those two
+was verified against them line by line. The gap is detector 1 alone.
 
 This does not make the numbers wrong -- they were read directly off the runs --
 but it does mean the reproducibility claim for detector 1's full-scale row rests

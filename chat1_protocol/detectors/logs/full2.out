@@ -1,0 +1,36 @@
+  GNU nano 4.8                                                /workspace/pclCodebase/chat1_protocol/detectors/logs/full2.out
+nohup: ignoring input
+==============================================================================
+DETECTOR 2    ^`^t external validation, MIMIC-IV -> eICU
+==============================================================================
+model d=64 layers=2 | device=cuda | 5 seeds | 3 epochs
+data path: sample['values'] (fixed PLAUS bounds, shared across datasets)    ^`^t see module docstring
+pools loaded from cache detectors/results/full_d2_pools.pkl in 5s: MIMIC 74607 stays, eICU 130446 stays
+source(MIMIC)=74607  leak pool(eICU, capped)=74607  probe(eICU)=32612
+/workspace/pclCodebase/chat1_protocol/src/models/backbone.py:90: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was T>
+  self.encoder = nn.TransformerEncoder(encoder_layer, num_layers=n_layers)
+/workspace/pclCodebase/chat1_protocol/src/models/backbone.py:90: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was T>
+  self.encoder = nn.TransformerEncoder(encoder_layer, num_layers=n_layers)
+  seed 42 done (1/5)
+  seed 43 done (2/5)
+  seed 44 done (3/5)
+  seed 45 done (4/5)
+  seed 46 done (5/5)
+
+  leakage   0%  probe loss 0.004961 +/- 0.000039   [0.0049, 0.00495, 0.00498, 0.005, 0.00498]
+  leakage   5%  probe loss 0.004800 +/- 0.000066   [0.00473, 0.00481, 0.00486, 0.00487, 0.00473]
+  leakage  20%  probe loss 0.004592 +/- 0.000024   [0.00457, 0.00459, 0.00463, 0.00459, 0.00458]
+  leakage 100%  probe loss 0.003912 +/- 0.000040   [0.00386, 0.00395, 0.00393, 0.00389, 0.00394]
+
+  leakage   probe loss   paired rel. delta       t   agree  detected
+       0%     0.004961                0.0%    0.00   False     False   (crit -2.132)
+       5%     0.004800               -3.2%   -6.65    True      True   (crit -2.132)
+      20%     0.004592               -7.4%  -23.24    True      True   (crit -2.132)
+     100%     0.003912              -21.1%  -64.12    True      True   (crit -2.132)
+
+------------------------------------------------------------------------------
+false positive at 0% leakage: False   (must be False)
+detection floor: 5% leakage
+check2 EXTERNAL             TP=3  FP=0  FN=0  TN=1  prec=1.00 rec=1.00 fpr=0.00
+
+NOTE: the MIMIC source is the entire demo cohort at every seed, so the source contributes no split variance; only the eICU target split varies with the seed.

@@ -1,0 +1,55 @@
+  GNU nano 4.8                                                /workspace/pclCodebase/chat1_protocol/detectors/logs/full5.out
+==============================================================================
+DETECTOR 5    ^`^t external validation (pre-registered)
+==============================================================================
+loading cached raw_ts from detectors/results/full_d5_arrays.npz ...
+eICU 130446 stays | MIMIC-IV 74607 stays
+components: ['MAP', 'HH', 'Severinghaus'] (oxygen term is Severinghaus, not the PhysioNet O2Sat-vs-SaO2 pair)
+E4 uses 800 PhysioNet stays per arm, 5 seeds
+
+==============================================================================
+VARIANT A_conjunction
+==============================================================================
+  seed 0 done
+  seed 1 done
+  seed 2 done
+  seed 3 done
+  seed 4 done
+
+  E1 ablation 50%                    flagged 0/5  expected=True  avail_ratio=1.7  gap_ratio=1.266
+  E1 ablation 80%                    flagged 5/5  expected=True  avail_ratio=3.4  gap_ratio=1.157
+  E1 ablation 95%                    flagged 5/5  expected=True  avail_ratio=240.9  gap_ratio=1.120
+  E2 eICU split, no ablation         flagged 0/5  expected=False  avail_ratio=1.0  gap_ratio=0.371
+  E4 PhysioNet A vs itself           flagged 0/5  expected=False  avail_ratio=1.1  gap_ratio=1.414
+
+  A_conjunction               TP=10 FP=0  FN=5  TN=10 prec=1.00 rec=0.67 fpr=0.00
+
+  E3 (MIMIC vs eICU, NOT SCORED): flagged=False  avail_ratio=2.4  gap_ratio=0.198
+==============================================================================
+VARIANT B_availability_only
+==============================================================================
+  seed 0 done
+  seed 1 done
+  seed 2 done
+  seed 3 done
+  seed 4 done
+
+  E1 ablation 50%                    flagged 0/5  expected=True  avail_ratio=1.7  gap_ratio=1.266
+  E1 ablation 80%                    flagged 5/5  expected=True  avail_ratio=3.4  gap_ratio=1.157
+  E1 ablation 95%                    flagged 5/5  expected=True  avail_ratio=240.9  gap_ratio=1.120
+  E2 eICU split, no ablation         flagged 0/5  expected=False  avail_ratio=1.0  gap_ratio=0.371
+  E4 PhysioNet A vs itself           flagged 0/5  expected=False  avail_ratio=1.1  gap_ratio=1.414
+
+  B_availability_only         TP=10 FP=0  FN=5  TN=10 prec=1.00 rec=0.67 fpr=0.00
+
+  E3 (MIMIC vs eICU, NOT SCORED): flagged=True  avail_ratio=2.4  gap_ratio=0.198
+
+==============================================================================
+PRE-REGISTERED DECISION RULE
+==============================================================================
+  B false positives on E2/E4: none
+  E1 ablation 50%          A 0.00   B 0.00
+  E1 ablation 80%          A 1.00   B 1.00
+  E1 ablation 95%          A 1.00   B 1.00
+
+Adoption of B additionally requires detection at a strictly lower ablation level than A, consistent in sign across seeds.
