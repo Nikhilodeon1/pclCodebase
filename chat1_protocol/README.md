@@ -166,6 +166,27 @@ variance, and flags against the df-appropriate one-sided 5% t critical value
 rather than a fixed -2.0. At 5 seeds the floor is unchanged at 5% leakage
 (rel. delta -3.1%, t=-3.96 against crit -2.132).
 
+DETECTOR 2 FULL-SCALE EXTERNAL (2026-08-17, `detectors/logs/full2.out`).
+Full MIMIC-IV (74,607 stays) as source, full eICU-CRD (130,446 stays) as target,
+5 seeds, leak pool capped at the source size so contamination PROPORTION stays
+comparable to the PhysioNet experiment:
+
+    source(MIMIC)=74607   leak pool(eICU, capped)=74607   probe(eICU)=32612
+
+    false positive at 0% leakage: False
+    detection floor: 5% leakage
+    check2 EXTERNAL  TP=3 FP=0 FN=0 TN=1
+
+The confusion matrix and the 5% floor are UNCHANGED from demo scale, on a target
+site 83x larger and a source 638x larger. Detector 2 holds.
+
+PENDING: the per-level relative deltas and t-statistics from this run are not yet
+transcribed. Do NOT write floor-STRENGTH language ("the floor is marginal", "t
+improved") until they are. "Detected at 5%" and "detected at 5% with the same
+strength as demo scale" are different claims and only the first is currently
+measured. The demo-scale figures below (-2.6% at t=-2.86) remain the only
+measured strength numbers and are labelled as demo scale.
+
 Detector 2 external validation, MIMIC-IV demo (source) -> eICU demo (target),
 5 seeds (detectors/logs/external2.out):
 
