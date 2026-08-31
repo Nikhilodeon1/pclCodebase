@@ -180,12 +180,33 @@ comparable to the PhysioNet experiment:
 The confusion matrix and the 5% floor are UNCHANGED from demo scale, on a target
 site 83x larger and a source 638x larger. Detector 2 holds.
 
-PENDING: the per-level relative deltas and t-statistics from this run are not yet
-transcribed. Do NOT write floor-STRENGTH language ("the floor is marginal", "t
-improved") until they are. "Detected at 5%" and "detected at 5% with the same
-strength as demo scale" are different claims and only the first is currently
-measured. The demo-scale figures below (-2.6% at t=-2.86) remain the only
-measured strength numbers and are labelled as demo scale.
+    leakage   probe loss   paired rel. delta       t   detected   (crit -2.132)
+        0%     0.004961                0.0%    0.00     False    <- FP control
+        5%     0.004800               -3.2%   -6.65     True     <- floor
+       20%     0.004592               -7.4%  -23.24     True
+      100%     0.003912              -21.1%  -64.12     True
+
+THE FLOOR IS NO LONGER MARGINAL AT FULL SCALE, and the earlier "marginal on both
+pairs" phrasing must be updated rather than repeated. At 5% leakage t=-6.65
+against a -2.132 critical value, roughly a 3x margin. The demo-scale figures were
+t=-2.86 (MIMIC demo -> eICU demo) and t=-3.96 (PhysioNet A -> B). So the
+marginality itself was largely a small-data artifact: the EFFECT at 5% is stable
+across all three runs (-2.6%, -3.1%, -3.2%), but its variance collapses with
+data, which is what moves t.
+
+Report all three t-values together, and say which scale each came from. The
+floor remains an UPPER BOUND on the true floor -- nothing below 5% leakage has
+ever been tested -- and that framing is unchanged.
+
+RETIRES AN EARLIER POST-HOC HYPOTHESIS. The demo-scale external run showed much
+larger effects than PhysioNet at matched leakage (-19.7% vs -9.0% at 20%), and
+this README previously floated, explicitly as an unconfirmed n=2 observation,
+that detector sensitivity might scale with how distant the two sites are. Full
+scale disconfirms it: with the same site pair and the same capped contamination
+proportion, the effects are now -7.4% at 20% and -21.1% at 100%, CLOSE TO
+PHYSIONET rather than to the demo-external run. The demo-external inflation is
+explained by its 117-stay source -- target data dominated a tiny training set --
+not by hospital distance. Do not carry the distance hypothesis into the paper.
 
 Detector 2 external validation, MIMIC-IV demo (source) -> eICU demo (target),
 5 seeds (detectors/logs/external2.out):
@@ -333,6 +354,29 @@ falsy value. The fix is cheap and mechanical: every check returns a decidability
 flag alongside its verdict, and undecidable cases are excluded from the
 confusion matrix and reported in their own column rather than defaulting to
 either class.
+
+## Archival gap — detector 1's full-scale logs were not preserved
+
+Detector 1's full-scale numbers in this file (the kappa table and the bootstrap
+CIs, including the P(flag)=0.484 headline) were TRANSCRIBED from terminal output,
+not read from an archived log. `full1_probe.out` and `full1_bootstrap.out` came
+back empty when copied off the pod, and are not in this repository.
+
+Detectors 2 and 5's full-scale logs (`full2.out`, `full5.out`) exist on the pod
+but have also not landed here yet.
+
+This does not make the numbers wrong -- they were read directly off the runs --
+but it does mean the reproducibility claim for detector 1's full-scale row rests
+on transcription rather than on an artifact. Two ways to close it, in order of
+cheapness:
+
+  1. `full_labels.npz` (detector 1's cached label arrays) may still be on the
+     pod's /workspace. If so, `bootstrap_kappa.py --labels <npz> --iters 5000`
+     regenerates the bootstrap log in SECONDS, no relabelling.
+  2. Otherwise the labelling pass repeats (~40 min) before the bootstrap.
+
+Until one of those is done and the logs are committed, state in the paper that
+full-scale detector 1 figures are transcribed from run output.
 
 ## Task 5 — what standard practice catches (detectors/logs/baselines_n2400.out)
 
