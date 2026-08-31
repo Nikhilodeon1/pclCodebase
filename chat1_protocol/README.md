@@ -287,6 +287,42 @@ MIMIC-specific and axis-specific — it is the window-vs-single-point axis on on
 database, not a general property of the detector or of the method. Keep that
 contrast adjacent to the finding wherever it appears.
 
+## Detector 3 at corpus scale — 727 files, zero recognised
+
+The four-repository result invited an obvious n=4 objection. This scales the
+half of the claim that CAN scale.
+
+Per-file ground truth -- is this file's selection genuinely contaminated? --
+requires a human reading the file and does not scale to hundreds. RECOGNITION
+does: detector 3 either identifies a function as a sweep it can audit, or it does
+not, and that is mechanically decidable. So the corpus scan measures how often
+the detector reaches a judgement AT ALL.
+
+Corpus: 18 public repositories, each with an associated paper, pinned commits in
+`detectors/external/SCAN_CORPUS.md`, cloned read-only and PARSED, never executed.
+Run with `detectors/external/scan_repos.py`.
+
+    python files scanned              735
+    parsed successfully               727
+    failed to parse                     8   (counted separately, NEVER as clean)
+    sweep recognised, pre-extension     0
+    sweep recognised, post-extension    0   (vocabulary fitted to these repos)
+
+**Detector 3 reached a judgement on ZERO of 727 parseable third-party files,
+before or after fitting its vocabulary to them.** The structural-not-lexical
+finding no longer rests on four repositories; it rests on this corpus.
+
+The 8 unparseable files (Python 2 era code in Benchmarking_DL_MIMICIII, retain,
+robustdg) are reported in their own column and never counted as clean -- the same
+discipline as INDETERMINATE. A file the detector could not read is not a file it
+judged.
+
+State the bound as: detector 3 detects OOD-contaminated selection in code shaped
+like this project's, and does not reach a verdict on other codebases' selection
+idioms at all. DomainBed is the clearest illustration of why -- it selects by
+argmax over a table of already-recorded metrics, with no training call anywhere
+in the selecting function, so there is no loop for the detector to find.
+
 ## Finding: pre-registration stopped an ungrounded case from deciding a variant
 
 Belongs in METHODS, as a concrete demonstration that the protocol did work —
