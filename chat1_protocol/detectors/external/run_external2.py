@@ -16,7 +16,8 @@ difference the probe measures. Guarded by
 detectors/tests/test_normalizer_bounds.py.
 
 LEAK POOL IS CAPPED TO THE SOURCE SIZE, and this matters for interpretation.
-MIMIC-IV demo yields ~117 stays against eICU's ~1563. Left uncapped, "5%
+MIMIC-IV yields far fewer stays than eICU at either scale (demo: ~117 vs ~1563;
+full: 74,607 vs 130,446). Left uncapped, "5%
 leakage" would add ~58 target stays to a 117-stay source -- a third of the
 training set -- while 5% on PhysioNet added 34 stays to 651, about 5%. The
 leakage percentages would then mean something entirely different between the two
@@ -203,7 +204,8 @@ def main():
     print(f"detection floor: "
           f"{f'{int(floor * 100)}% leakage' if floor else 'NOT DETECTED at any level'}")
     print(fmt_matrix("check2 EXTERNAL", counts))
-    print("\nNOTE: the MIMIC source is the entire demo cohort at every seed, so "
+    print(f"\nNOTE: the MIMIC source is the entire cohort ({sizes[0]} stays) at "
+          "every seed, so "
           "the source contributes no split variance; only the eICU target split "
           "varies with the seed.")
 
