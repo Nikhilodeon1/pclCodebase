@@ -30,7 +30,17 @@ UNCERTAINTY = {
     # row. Demo-scale was [0.528, 0.776] P(flag)=0.216 at n=117; more data made
     # it worse, not better.
     1: {"ci_lo": 0.539, "ci_hi": 0.663, "p_would_flag": 0.484},
-    2: {"mean": -0.031, "sd": 0.018},
+    # Full-scale (detectors/logs/full2.out, MIMIC-IV -> eICU, 5 seeds) at the 5%
+    # detection floor. This used to hold {"mean": -0.031, "sd": 0.018}, which
+    # was the DEMO run (detectors/logs/check2_5seed.out) carried forward without
+    # a provenance comment. A paired t is also the right statistic here: the
+    # unpaired 0%-leakage spread is +/- 0.9% of the mean loss, comparable to the
+    # 3.2% effect it has to reveal, so mean +/- sd understates the detector.
+    2: {"t": -6.65, "crit": -2.132, "floor": 0.05, "sign_agree_n": 5, "n": 5},
+    # detectors/logs/check5_sampling.out, 5 random samples at n=1200 stays/arm.
+    # NOT scale-invariant: at n=4000 the same procedure flags 0/3
+    # (check5_sampling_n4000.out). The flag rate is a property of the audit
+    # sample size as well as of the sites, and must be reported with its n.
     5: {"flag_rate": 0.4, "n": 5},
     3: None,
     4: None,

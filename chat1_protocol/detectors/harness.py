@@ -116,6 +116,18 @@ def fmt_uncertainty(check_number, stats):
         return f"flagged {int(round(stats['flag_rate'] * stats['n']))}/{stats['n']} seeds"
     if "mean" in stats and "sd" in stats:
         return f"{stats['mean']:.3f} +/- {stats['sd']:.3f}"
+    # A paired test across seeds. Preferred over mean +/- sd when the detector
+    # computes one, because the spread that matters is the WITHIN-seed paired
+    # spread, not the between-seed spread of the raw statistic -- detector 2's
+    # unpaired 0%-leakage spread is large enough to hide its own effect.
+    if "t" in stats and "crit" in stats:
+        s = f"paired t={stats['t']:.2f} vs crit {stats['crit']:.3f}"
+        if stats.get("floor") is not None:
+            s += f" at the {int(stats['floor'] * 100)}% detection floor"
+        if stats.get("sign_agree_n") is not None and stats.get("n") is not None:
+            s += (f", sign-consistent {stats['sign_agree_n']}/{stats['n']} "
+                  "seeds")
+        return s
     return "MISSING — stochastic detector reported no uncertainty"
 
 

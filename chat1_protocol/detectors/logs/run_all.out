@@ -5,12 +5,12 @@ check1 — label-definition shift
 data: C:\Users\nikhi\Codes\pclCodebase\chat1_protocol\data\eICU-demo
 cohort n=1627   ICD prevalence=0.146   SOFA(single) prevalence=0.058   SOFA(window) prevalence=0.089
 
---- positive (ICD vs SOFA) ---
-  prevalence      site1=0.153  site2=0.068  ratio=2.26   (weak signal, flag>1.5)
-  audit subset    n=500  raw agreement=0.878  kappa=0.358   (flag<0.6)
+--- positive (ICD vs SOFA window) ---
+  prevalence      site1=0.153  site2=0.097  ratio=1.57   (weak signal, flag>1.5)
+  audit subset    n=500  raw agreement=0.884  kappa=0.467   (flag<0.6)
   ==> FLAGGED: label-definition mismatch
 
---- negative (SOFA window vs single) ---
+--- negative (SOFA window vs single-point) ---
   prevalence      site1=0.080  site2=0.068  ratio=1.18   (weak signal, flag>1.5)
   audit subset    n=500  raw agreement=0.962  kappa=0.771   (flag<0.6)
   ==> clean
@@ -72,7 +72,7 @@ SpO2          0.5620    0.2487      2.3    0.06957    0.00656    2.22
   aggregate, as scored      : 0.02821 vs 0.01971   (relative gap 0.301)
   aggregate, composition-only: 0.02144 vs 0.02334   (relative gap 0.081)
   max availability ratio 31.0 (flag > 2.0)
-  share of gap explained by composition alone: 0.27 (flag > 0.3)
+  composition/naive gap RATIO (unbounded, not a %): 0.27 (flag > 0.3)
   ==> clean
 
 --- PhysioNet Site A (half 1)  vs  PhysioNet Site A (half 2) ---
@@ -83,16 +83,21 @@ SpO2          0.5620    0.5771      1.0    0.06957    0.07285    3.61
   aggregate, as scored      : 0.02821 vs 0.03041   (relative gap 0.072)
   aggregate, composition-only: 0.02719 vs 0.02688   (relative gap 0.011)
   max availability ratio 1.1 (flag > 2.0)
-  share of gap explained by composition alone: 0.16 (flag > 0.3)
+  composition/naive gap RATIO (unbounded, not a %): 0.16 (flag > 0.3)
   ==> clean
 
 ==============================================================================
 CONFOUND DETECTOR VALIDATION  (full re-run)
 ==============================================================================
 check1  label-definition shift      TP=1  FP=0  FN=0  TN=1  prec=1.00 rec=1.00 fpr=0.00
+                                    95% CI [0.539, 0.663], P(flag)=0.484
 check2  pretraining leakage         TP=3  FP=0  FN=0  TN=1  prec=1.00 rec=1.00 fpr=0.00
+                                    paired t=-6.65 vs crit -2.132 at the 5% detection floor, sign-consistent 5/5 seeds
 check3  OOD-contaminated selection  TP=1  FP=0  FN=0  TN=1  prec=1.00 rec=1.00 fpr=0.00
+                                    deterministic (no CI: static analysis)
 check4  circular constraints        TP=1  FP=0  FN=0  TN=8  prec=1.00 rec=1.00 fpr=0.00
+                                    deterministic (no CI: static analysis)
 check5  missingness/scale           TP=0  FP=0  FN=1  TN=1  prec=nan rec=0.00 fpr=0.00
+                                    flagged 2/5 seeds
 
 TOTAL                       TP=6  FP=0  FN=1  TN=12 prec=1.00 rec=0.86 fpr=0.00

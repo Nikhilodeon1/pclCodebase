@@ -37,6 +37,29 @@ Local runs exceed the 2-minute tool timeout — use
     4      circular constraints          1  0  0  8   precision 1.00 recall 1.00
     5      missingness/scale             0  0  1  1   FALSE NEGATIVE on its own positive case
 
+**Every verdict ships an uncertainty measure, or says why it cannot.** This is a
+reporting rule, not a courtesy: `harness.requires_uncertainty` classifies each
+detector as stochastic or deterministic and refuses to classify an unknown one,
+and `fmt_uncertainty` renders "MISSING" rather than a blank for a stochastic
+detector that reported nothing. `run_all.py` prints the column beside the matrix.
+
+    check  uncertainty                                                  source
+    1      95% CI [0.539, 0.663], P(flag) = 0.484                       full-scale bootstrap, 5000x, audit-500 draws
+    2      paired t = -6.65 vs crit -2.132 at the 5% floor, 5/5 signs   logs/full2.out
+    3      deterministic (no CI: static analysis)                       —
+    4      deterministic (no CI: static analysis)                       —
+    5      flagged 2/5 seeds at n=1200 stays/arm                        logs/check5_sampling.out
+
+Three cautions attach to that column and all three must survive into the paper.
+Detector 1's interval is the AUDIT-SUBSET interval, not the cohort interval —
+the cohort CI is [0.597, 0.607], ten times tighter, and quoting it would make a
+coin-flip detector look decisive. Detector 2 is reported as a paired t rather
+than mean +/- sd because its unpaired 0%-leakage spread is comparable in size to
+the effect it must reveal. Detector 5's flag rate is **not scale-invariant**:
+the same procedure gives 2/5 at n=1200 and 0/3 at n=4000
+(`logs/check5_sampling_n4000.out`), so the rate is a property of the audit
+sample size as much as of the sites, and must never be quoted without its n.
+
 Check 1's TN was 2 and its controls reported kappa 1.000. Those controls passed
 the same audit array as both arguments to Cohen's kappa, so the result was 1.0
 by construction. The control is now SOFA window-mode against SOFA single-mode —
@@ -390,6 +413,41 @@ falsy value. The fix is cheap and mechanical: every check returns a decidability
 flag alongside its verdict, and undecidable cases are excluded from the
 confusion matrix and reported in their own column rather than defaulting to
 either class.
+
+## Finding: a committed log contradicted the result of record
+
+Found 2026-09-05 while auditing the repository before drafting. `logs/check5.out`
+— the committed machine output for detector 5's own headline case — ended with:
+
+    share of gap explained by composition alone: 0.49 (flag > 0.3)
+    ==> FLAGGED: composition artifact
+    verdict: DETECTOR VALIDATED
+
+Every part of that was retracted months earlier. The 0.49 was the
+alphabetical-prefix sampling artifact; the population value is ~0.27, below the
+gate. The quantity is not a share. And detector 5's positive case is this
+paper's one FALSE NEGATIVE, stated as such in the results table two hundred
+lines above in this same file. `logs/run_all.out` carried the same stale
+phrasing.
+
+**What makes this worth reporting rather than just fixing.** The prose was
+corrected when the bug was found; the machine output was not. Prose is what an
+author rereads, so prose gets updated — but a log is the artifact a skeptical
+reader goes to *because* it is machine-generated and therefore trusted more than
+the prose. Correcting the claim and leaving the evidence behind inverts the
+usual failure: the least trustworthy statement in the repository was the one
+carrying the strongest provenance signal.
+
+Both logs are regenerated from current code. `tests/test_log_phrasing.py` now
+scans `logs/*.out` for retracted wording, and for a check5 log claiming
+"DETECTOR VALIDATED", so the two can no longer drift apart silently. The ban on
+that verdict string is scoped to check5 deliberately — checks 1 and 2 print it
+legitimately, and an unscoped version of this rule flagged five healthy logs
+when it was first written.
+
+This is the same shape as the undecidable-state finding below: in both, a
+diagnostic's output was readable as a clean pass when the underlying state was
+nothing of the kind.
 
 ## Archival gap — detector 1's full-scale logs were not preserved
 

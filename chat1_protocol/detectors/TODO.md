@@ -190,21 +190,32 @@ scope statement.
 Cost: one extra arm on the existing sweep, CPU only, roughly the runtime of one
 additional leakage level (order 15 minutes at 5 seeds, 900 stays/site).
 
-## 3. Should every real-data detector report an uncertainty measure by default?
+## 3. RESOLVED (2026-09-05) — yes, every stochastic detector reports uncertainty
 
-**Status:** open design decision. Deferred until detectors 3/4 are done, but
-must be settled BEFORE the results table is finalized.
+**Decision: mandatory for stochastic detectors, explicitly N/A for deterministic
+ones, and a stochastic detector that reports nothing renders as MISSING rather
+than as blank.**
 
-Detector 1 now has a bootstrap CI and detector 5 has across-seed variance, but
-both were computed because a specific number looked close, not as a matter of
-course. The MIMIC exposure (kappa 0.651, 95% CI [0.528, 0.776], P(flag) = 0.216)
-would not have been found without deliberately going to look for it.
+The machinery already existed — `harness.requires_uncertainty` and
+`harness.fmt_uncertainty`, guarded by `tests/test_uncertainty_policy.py`. What
+was open was whether the MAIN RESULTS TABLE carried the column. It now does, in
+both `run_all.py` output and README.
 
-The question is whether a verdict without an interval should be reportable at
-all for detectors that consume real data. Detectors 3 and 4 are deterministic
-static analysis and are excluded either way — there is nothing to resample.
+What settled it: the two times uncertainty was measured it changed how the
+result had to be described, and the audit found a third case while wiring the
+column up. Detector 2's stored entry was `{"mean": -0.031, "sd": 0.018}` — the
+DEMO run, carried forward with no provenance comment while every surrounding
+number had moved to full scale. Nothing flagged it, because a plausible-looking
+number in a table nobody printed is invisible. It is now the full-scale paired t
+(-6.65 vs crit -2.132), with the source log named in a comment.
 
-Arguments for making it default: the two times uncertainty was measured, it
-changed how the result had to be described. Against: it is not free for the
-detectors that require training runs, and an interval on a verdict that is not
-close adds noise to the table.
+The argument against — that an interval on a not-close verdict adds noise —
+turned out to be backwards. The intervals that added the most were on the rows
+that looked settled: detector 5's 2/5 flag rate is stable-looking until you see
+it is 0/3 at n=4000, i.e. not scale-invariant at all.
+
+**Rules that follow, and must hold in the paper.** Detector 1 is quoted with its
+AUDIT-SUBSET interval, never the cohort interval, because the audit subset is
+what the detector scores. Detector 2 is quoted as a paired t, not mean +/- sd,
+because its unpaired null spread is comparable to the effect size. Detector 5's
+flag rate is never quoted without its n.
