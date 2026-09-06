@@ -1,0 +1,100 @@
+{
+  "A_conjunction": {
+    "counts": {
+      "TP": 0,
+      "FP": 0,
+      "FN": 3,
+      "TN": 2
+    },
+    "cases": {
+      "E1 ablation 50%": {
+        "flag_rate": 0.0,
+        "expected": true,
+        "mean_avail_ratio": 1.4634098296070128,
+        "mean_gap_ratio": 0.03703087040810035
+      },
+      "E1 ablation 80%": {
+        "flag_rate": 0.0,
+        "expected": true,
+        "mean_avail_ratio": 3.6821279583660322,
+        "mean_gap_ratio": 0.2059943444970355
+      },
+      "E1 ablation 95%": {
+        "flag_rate": 0.0,
+        "expected": true,
+        "mean_avail_ratio": Infinity,
+        "mean_gap_ratio": 0.288483460938127
+      },
+      "E2 eICU split, no ablation": {
+        "flag_rate": 0.0,
+        "expected": false,
+        "mean_avail_ratio": 1.1564140530354017,
+        "mean_gap_ratio": 0.23034778818142326
+      },
+      "E4 PhysioNet A vs itself": {
+        "flag_rate": 0.0,
+        "expected": false,
+        "mean_avail_ratio": 1.1568627450980393,
+        "mean_gap_ratio": 0.3371706416000714
+      }
+    },
+    "E3_descriptive": {
+      "flagged": true,
+      "max_avail_ratio": 3.1496768813841984,
+      "composition_gap_ratio": 0.5844791971112343,
+      "naive_gap": 0.23387912651251253,
+      "comp_gap": 0.13669748408511012,
+      "n_stays_a": 117,
+      "n_stays_b": 1563
+    }
+  },
+  "B_availability_only": {
+    "counts": {
+      "TP": 2,
+      "FP": 0,
+      "FN": 1,
+      "TN": 2
+    },
+    "cases": {
+      "E1 ablation 50%": {
+        "flag_rate": 0.0,
+        "expected": true,
+        "mean_avail_ratio": 1.4634098296070128,
+        "mean_gap_ratio": 0.03703087040810035
+      },
+      "E1 ablation 80%": {
+        "flag_rate": 1.0,
+        "expected": true,
+        "mean_avail_ratio": 3.6821279583660322,
+        "mean_gap_ratio": 0.2059943444970355
+      },
+      "E1 ablation 95%": {
+        "flag_rate": 1.0,
+        "expected": true,
+        "mean_avail_ratio": Infinity,
+        "mean_gap_ratio": 0.288483460938127
+      },
+      "E2 eICU split, no ablation": {
+        "flag_rate": 0.0,
+        "expected": false,
+        "mean_avail_ratio": 1.1564140530354017,
+        "mean_gap_ratio": 0.23034778818142326
+      },
+      "E4 PhysioNet A vs itself": {
+        "flag_rate": 0.0,
+        "expected": false,
+        "mean_avail_ratio": 1.1568627450980393,
+        "mean_gap_ratio": 0.3371706416000714
+      }
+    },
+    "E3_descriptive": {
+      "flagged": true,
+      "max_avail_ratio": 3.1496768813841984,
+      "composition_gap_ratio": 0.5844791971112343,
+      "naive_gap": 0.23387912651251253,
+      "comp_gap": 0.13669748408511012,
+      "n_stays_a": 117,
+      "n_stays_b": 1563
+    }
+  }
+}

@@ -1,0 +1,229 @@
+{
+  "summary": {
+    "0.0": {
+      "kfold_sd": 0.07885662207624303,
+      "indomain": 0.7826925522810514,
+      "target": 0.6653632727555142,
+      "gap": 0.11732927952553718
+    },
+    "0.05": {
+      "kfold_sd": 0.07886357986177865,
+      "indomain": 0.7817688898373958,
+      "target": 0.6714613197724316,
+      "gap": 0.11030757006496417
+    },
+    "0.2": {
+      "kfold_sd": 0.0794519048032902,
+      "indomain": 0.7809910333766629,
+      "target": 0.670359356653556,
+      "gap": 0.11063167672310692
+    },
+    "1.0": {
+      "kfold_sd": 0.08035704110629859,
+      "indomain": 0.7793131732512445,
+      "target": 0.6761898988044152,
+      "gap": 0.10312327444682934
+    }
+  },
+  "baselines": {
+    "external_floor": {
+      "counts": {
+        "TP": 3,
+        "FP": 1,
+        "FN": 0,
+        "TN": 0
+      },
+      "undecidable_seed_levels": 0,
+      "per_level": {
+        "leakage 0%": {
+          "flag_rate": 0.6666666666666666,
+          "n_decided": 3,
+          "n_undecidable": 0
+        },
+        "leakage 5%": {
+          "flag_rate": 0.6666666666666666,
+          "n_decided": 3,
+          "n_undecidable": 0
+        },
+        "leakage 20%": {
+          "flag_rate": 0.6666666666666666,
+          "n_decided": 3,
+          "n_undecidable": 0
+        },
+        "leakage 100%": {
+          "flag_rate": 0.6666666666666666,
+          "n_decided": 3,
+          "n_undecidable": 0
+        }
+      }
+    },
+    "kfold_cv_instability": {
+      "counts": {
+        "TP": 3,
+        "FP": 1,
+        "FN": 0,
+        "TN": 0
+      },
+      "undecidable_seed_levels": 0,
+      "per_level": {
+        "leakage 0%": {
+          "flag_rate": 0.6666666666666666,
+          "n_decided": 3,
+          "n_undecidable": 0
+        },
+        "leakage 5%": {
+          "flag_rate": 0.6666666666666666,
+          "n_decided": 3,
+          "n_undecidable": 0
+        },
+        "leakage 20%": {
+          "flag_rate": 0.6666666666666666,
+          "n_decided": 3,
+          "n_undecidable": 0
+        },
+        "leakage 100%": {
+          "flag_rate": 0.6666666666666666,
+          "n_decided": 3,
+          "n_undecidable": 0
+        }
+      }
+    },
+    "train_test_gap": {
+      "counts": {
+        "TP": 3,
+        "FP": 1,
+        "FN": 0,
+        "TN": 0
+      },
+      "undecidable_seed_levels": 0,
+      "per_level": {
+        "leakage 0%": {
+          "flag_rate": 0.6666666666666666,
+          "n_decided": 3,
+          "n_undecidable": 0
+        },
+        "leakage 5%": {
+          "flag_rate": 0.6666666666666666,
+          "n_decided": 3,
+          "n_undecidable": 0
+        },
+        "leakage 20%": {
+          "flag_rate": 0.6666666666666666,
+          "n_decided": 3,
+          "n_undecidable": 0
+        },
+        "leakage 100%": {
+          "flag_rate": 0.6666666666666666,
+          "n_decided": 3,
+          "n_undecidable": 0
+        }
+      }
+    }
+  },
+  "raw": {
+    "0.0": [
+      {
+        "kfold_sd": 0.034257276368653285,
+        "indomain_auroc": 0.7330917874396136,
+        "target_auroc": 0.56,
+        "n_source": 1688,
+        "n_target": 600,
+        "target_prevalence": 0.01666666753590107
+      },
+      {
+        "kfold_sd": 0.09244953852413407,
+        "indomain_auroc": 0.730246913580247,
+        "target_auroc": 0.7681587837837838,
+        "n_source": 1666,
+        "n_target": 600,
+        "target_prevalence": 0.013333333656191826
+      },
+      {
+        "kfold_sd": 0.10986305133594174,
+        "indomain_auroc": 0.8847389558232932,
+        "target_auroc": 0.6679310344827586,
+        "n_source": 1707,
+        "n_target": 595,
+        "target_prevalence": 0.02521008439362049
+      }
+    ],
+    "0.05": [
+      {
+        "kfold_sd": 0.03300001124090061,
+        "indomain_auroc": 0.731280193236715,
+        "target_auroc": 0.5711864406779661,
+        "n_source": 1688,
+        "n_target": 600,
+        "target_prevalence": 0.01666666753590107
+      },
+      {
+        "kfold_sd": 0.09258817330348768,
+        "indomain_auroc": 0.7320987654320987,
+        "target_auroc": 0.7683699324324325,
+        "n_source": 1666,
+        "n_target": 600,
+        "target_prevalence": 0.013333333656191826
+      },
+      {
+        "kfold_sd": 0.11100255504094766,
+        "indomain_auroc": 0.8819277108433735,
+        "target_auroc": 0.6748275862068965,
+        "n_source": 1707,
+        "n_target": 595,
+        "target_prevalence": 0.02521008439362049
+      }
+    ],
+    "0.2": [
+      {
+        "kfold_sd": 0.03490435854721198,
+        "indomain_auroc": 0.7273550724637681,
+        "target_auroc": 0.5716949152542373,
+        "n_source": 1688,
+        "n_target": 600,
+        "target_prevalence": 0.01666666753590107
+      },
+      {
+        "kfold_sd": 0.09272541803943266,
+        "indomain_auroc": 0.7314814814814815,
+        "target_auroc": 0.7673141891891891,
+        "n_source": 1666,
+        "n_target": 600,
+        "target_prevalence": 0.013333333656191826
+      },
+      {
+        "kfold_sd": 0.11072593782322596,
+        "indomain_auroc": 0.8841365461847389,
+        "target_auroc": 0.6720689655172414,
+        "n_source": 1707,
+        "n_target": 595,
+        "target_prevalence": 0.02521008439362049
+      }
+    ],
+    "1.0": [
+      {
+        "kfold_sd": 0.03875258310625739,
+        "indomain_auroc": 0.7294685990338164,
+        "target_auroc": 0.5771186440677966,
+        "n_source": 1688,
+        "n_target": 600,
+        "target_prevalence": 0.01666666753590107
+      },
+      {
+        "kfold_sd": 0.09013701861553912,
+        "indomain_auroc": 0.7265432098765432,
+        "target_auroc": 0.776393581081081,
+        "n_source": 1666,
+        "n_target": 600,
+        "target_prevalence": 0.013333333656191826
+      },
+      {
+        "kfold_sd": 0.11218152159709927,
+        "indomain_auroc": 0.8819277108433735,
+        "target_auroc": 0.6750574712643678,
+        "n_source": 1707,
+        "n_target": 595,
+        "target_prevalence": 0.02521008439362049
+      }
+    ]
+  }
+}

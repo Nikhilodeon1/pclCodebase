@@ -1,0 +1,40 @@
+{
+  "counts": {
+    "TP": 0,
+    "FP": 0,
+    "FN": 1,
+    "TN": 1
+  },
+  "cases": [
+    {
+      "name": "positive (PhysioNet Site A vs PhysioNet Site B)",
+      "flagged": false,
+      "expected": true,
+      "stats": {
+        "max_avail_ratio": 30.970176068990295,
+        "composition_gap_ratio": 0.2703713371215011,
+        "naive_gap": 0.3012712608208156,
+        "comp_gap": 0.08145511362440441,
+        "n_stays_a": 847,
+        "n_stays_b": 1190,
+        "seed": 0,
+        "n": 1200
+      }
+    },
+    {
+      "name": "negative (PhysioNet Site A vs itself)",
+      "flagged": false,
+      "expected": false,
+      "stats": {
+        "max_avail_ratio": 1.0627504099237186,
+        "composition_gap_ratio": 0.15694224757674247,
+        "naive_gap": 0.07242808791337196,
+        "comp_gap": 0.011367026904810491,
+        "n_stays_a": 847,
+        "n_stays_b": 830,
+        "seed": 0,
+        "n": 1200
+      }
+    }
+  ]
+}

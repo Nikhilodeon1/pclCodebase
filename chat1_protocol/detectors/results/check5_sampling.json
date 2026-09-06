@@ -1,0 +1,16 @@
+{
+  "legacy_explained": 0.32292188108331144,
+  "legacy_flagged": true,
+  "random_explained": [
+    0.2327512410482002,
+    0.290879432526707,
+    0.29857644540498723
+  ],
+  "random_flagged": [
+    false,
+    false,
+    false
+  ],
+  "n": 4000,
+  "threshold": 0.3
+}

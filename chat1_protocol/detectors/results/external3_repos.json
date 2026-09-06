@@ -1,0 +1,179 @@
+{
+  "pre_extension": {
+    "TP": 0,
+    "FP": 0,
+    "FN": 1,
+    "TN": 0,
+    "indeterminate_on_positives": 1,
+    "indeterminate_on_negatives": 3,
+    "recognised": 0
+  },
+  "post_extension_fitted": {
+    "TP": 0,
+    "FP": 0,
+    "FN": 1,
+    "TN": 0,
+    "indeterminate_on_positives": 1,
+    "indeterminate_on_negatives": 3,
+    "recognised": 0
+  },
+  "vocabulary_diff": {
+    "val": [
+      "env_out_acc",
+      "in_splits",
+      "train_envs",
+      "val_X",
+      "val_acc",
+      "val_data",
+      "val_gen",
+      "val_reader"
+    ],
+    "ood": [
+      "out_splits",
+      "target_data",
+      "test_X",
+      "test_data",
+      "test_env",
+      "test_envs",
+      "test_gen",
+      "test_in_acc",
+      "test_out_acc",
+      "test_reader"
+    ],
+    "eval_fns": [
+      "accuracy",
+      "predict",
+      "predict_proba",
+      "print_metrics_binary",
+      "run_acc",
+      "score",
+      "sweep_acc",
+      "test",
+      "validate"
+    ],
+    "train_fns": [
+      "Trainer",
+      "fit",
+      "main",
+      "run_experiment",
+      "train",
+      "train_epoch",
+      "train_step"
+    ],
+    "hints": [
+      "acc",
+      "collect",
+      "hparam",
+      "hyperparam",
+      "main",
+      "run",
+      "select"
+    ]
+  },
+  "rows_pre": [
+    {
+      "repo": "DomainBed",
+      "file": "model_selection.py",
+      "expected": true,
+      "verdict": "INDETERMINATE",
+      "outcome": "FN (no sweep recognised)",
+      "rationale": "Contains OracleSelectionMethod, whose own docstring states it 'picks argmax(test_out_acc) across all hparams'. Selection is performed on the held-out TEST domain, which is precisely the confound detector 3 exists to find. The authors disclose it as an oracle, so ground truth here is documented, not inferred. The same file also contains IIDAccuracySelectionMethod, which selects on training-domain validation only, so a file-level verdict of CONTAMINATED is correct for the file as a whole.",
+      "sweeps_found": 0
+    },
+    {
+      "repo": "DomainBed",
+      "file": "sweep.py",
+      "expected": false,
+      "verdict": "INDETERMINATE",
+      "outcome": "no credit (no sweep recognised)",
+      "rationale": "Builds and launches job command lines across a hyperparameter grid. It never evaluates a model or compares scores, so no selection of any kind happens here; the choice of best run is made later in collect_results.py. A detector that flags this is reacting to the word 'sweep' rather than to selection.",
+      "sweeps_found": 0
+    },
+    {
+      "repo": "mimic3-benchmarks",
+      "file": "main.py",
+      "expected": false,
+      "verdict": "INDETERMINATE",
+      "outcome": "no credit (no sweep recognised)",
+      "rationale": "Fits a single LogisticRegression with C taken from a command-line argument. There is no loop over hyperparameters and therefore no selection at all. Both a validation and a test reader exist and both are scored, which is legitimate reporting -- the case detector 3 is specifically designed not to flag.",
+      "sweeps_found": 0
+    },
+    {
+      "repo": "mimic3-benchmarks",
+      "file": "main.py",
+      "expected": false,
+      "verdict": "INDETERMINATE",
+      "outcome": "no credit (no sweep recognised)",
+      "rationale": "Trains one Keras model per invocation with hyperparameters fixed from argparse, using a validation split for early stopping and checkpointing. Test data is read for final reporting only. No hyperparameter is chosen by comparing scores across candidates.",
+      "sweeps_found": 0
+    }
+  ],
+  "rows_post": [
+    {
+      "repo": "DomainBed",
+      "file": "model_selection.py",
+      "expected": true,
+      "verdict": "INDETERMINATE",
+      "outcome": "FN (no sweep recognised)",
+      "rationale": "Contains OracleSelectionMethod, whose own docstring states it 'picks argmax(test_out_acc) across all hparams'. Selection is performed on the held-out TEST domain, which is precisely the confound detector 3 exists to find. The authors disclose it as an oracle, so ground truth here is documented, not inferred. The same file also contains IIDAccuracySelectionMethod, which selects on training-domain validation only, so a file-level verdict of CONTAMINATED is correct for the file as a whole.",
+      "sweeps_found": 0
+    },
+    {
+      "repo": "DomainBed",
+      "file": "sweep.py",
+      "expected": false,
+      "verdict": "INDETERMINATE",
+      "outcome": "no credit (no sweep recognised)",
+      "rationale": "Builds and launches job command lines across a hyperparameter grid. It never evaluates a model or compares scores, so no selection of any kind happens here; the choice of best run is made later in collect_results.py. A detector that flags this is reacting to the word 'sweep' rather than to selection.",
+      "sweeps_found": 0
+    },
+    {
+      "repo": "mimic3-benchmarks",
+      "file": "main.py",
+      "expected": false,
+      "verdict": "INDETERMINATE",
+      "outcome": "no credit (no sweep recognised)",
+      "rationale": "Fits a single LogisticRegression with C taken from a command-line argument. There is no loop over hyperparameters and therefore no selection at all. Both a validation and a test reader exist and both are scored, which is legitimate reporting -- the case detector 3 is specifically designed not to flag.",
+      "sweeps_found": 0
+    },
+    {
+      "repo": "mimic3-benchmarks",
+      "file": "main.py",
+      "expected": false,
+      "verdict": "INDETERMINATE",
+      "outcome": "no credit (no sweep recognised)",
+      "rationale": "Trains one Keras model per invocation with hyperparameters fixed from argparse, using a validation split for early stopping and checkpointing. Test data is read for final reporting only. No hyperparameter is chosen by comparing scores across candidates.",
+      "sweeps_found": 0
+    }
+  ],
+  "repos": [
+    {
+      "name": "DomainBed",
+      "url": "https://github.com/facebookresearch/DomainBed",
+      "commit": "b93c22a1cfc3b2428398272c1a116c8de1f4139e",
+      "paper": "Gulrajani & Lopez-Paz, In Search of Lost Domain Generalization, ICLR 2021",
+      "clinical": false
+    },
+    {
+      "name": "mimic3-benchmarks",
+      "url": "https://github.com/YerevaNN/mimic3-benchmarks",
+      "commit": "ea0314c7cbd369f62e2237ace6f683740f867e3a",
+      "paper": "Harutyunyan et al., Multitask learning and benchmarking with clinical time series data, Sci Data 2019",
+      "clinical": true
+    },
+    {
+      "name": "MIMIC_Extract",
+      "url": "https://github.com/MLforHealth/MIMIC_Extract",
+      "commit": "d8d2dea551283bea449b8495bfc1b5a41b90d837",
+      "paper": "Wang et al., MIMIC-Extract, CHIL 2020",
+      "clinical": true
+    },
+    {
+      "name": "HIRID-ICU-Benchmark",
+      "url": "https://github.com/ratschlab/HIRID-ICU-Benchmark",
+      "commit": "bee770094bf8389920bc09823895b87e09a563dd",
+      "paper": "Yeche et al., HiRID-ICU-Benchmark, NeurIPS Datasets & Benchmarks 2021",
+      "clinical": true
+    }
+  ]
+}

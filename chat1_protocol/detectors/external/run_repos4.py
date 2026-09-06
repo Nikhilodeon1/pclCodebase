@@ -58,15 +58,33 @@ EXTERNAL = [
 ]
 
 
+def rel(path):
+    """Path as it should appear in the committed JSON.
+
+    The results file is a published artifact, so it must not carry the author's
+    home directory. Own-code paths are recorded relative to the repository root
+    and external-corpus paths relative to the scratch clone directory, which is
+    the form SCAN_CORPUS.md documents anyway.
+    """
+    for base in (ROOT, SCRATCH):
+        try:
+            r = os.path.relpath(path, base)
+        except ValueError:      # different drive on Windows
+            continue
+        if not r.startswith(".."):
+            return r.replace("\\", "/")
+    return os.path.basename(path)
+
+
 def show(label, path, columns, rationale=None):
     if not os.path.exists(path):
         print(f"\n{label:<24} MISSING: {path}")
-        return {"file": path, "status": "missing"}
+        return {"file": rel(path), "status": "missing"}
     try:
         raw = extract_lineage(path, VARS)
     except SyntaxError as e:
         print(f"\n{label:<24} UNPARSEABLE ({e.msg})")
-        return {"file": path, "status": "unparseable", "error": str(e.msg)}
+        return {"file": rel(path), "status": "unparseable", "error": str(e.msg)}
 
     res = resolve(raw, columns)
     print(f"\n{label}")
@@ -74,14 +92,14 @@ def show(label, path, columns, rationale=None):
         print(f"  ground truth: {rationale}")
     if not raw:
         print("  no equation-based derivation of any constrained variable")
-        return {"file": path, "status": "no_derivations", "derivations": {}}
+        return {"file": rel(path), "status": "no_derivations", "derivations": {}}
     for var, rec in sorted(res.items()):
         state = "REACHABLE" if rec["reachable"] else "unreachable"
         print(f"  {var:<10} <- {rec['equation']:<22} line {rec['line']:<5} "
               f"{state}")
         if rec["reason"]:
             print(f"             {rec['reason']}")
-    return {"file": path, "status": "derivations_found",
+    return {"file": rel(path), "status": "derivations_found",
             "derivations": {v: {k: rec[k] for k in
                                 ("equation", "line", "reachable", "reason")}
                             for v, rec in res.items()}}

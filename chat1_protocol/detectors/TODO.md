@@ -16,145 +16,92 @@ Rule: when a prompt asserts a resource is available, verify the assertion holds
 in the environment that will execute, not in principle. Cheap, and it is the
 same discipline as checking a control is a measurement rather than an identity.
 
-## 0a. RESUME HERE — detector 5 full scale, E4 failed (2026-08-17)
+## 0a. DONE — detector 5 full scale (closed 2026-08-17)
 
-**State.** The expensive half SUCCEEDED and is cached. Full eICU (130,446 stays)
-and full MIMIC-IV (74,607 stays) were loaded and written to
-`full_d5_arrays.npz`. The run then died at the E4 regression guard with
-`missing .../chat1_protocol/data/physionet2019/training_setA`, because check5's
-ROOT was hardcoded relative to __file__ and ignored PHYSIONET_DIR. That is FIXED
-(commit "fix: detector 5 now honours PHYSIONET_DIR"). Nothing else is wrong.
+The E4 regression guard died on a hardcoded PhysioNet path that ignored
+`PHYSIONET_DIR`. Fixed in "fix: detector 5 now honours PHYSIONET_DIR", rerun from
+the cached arrays, and the result is recorded in `detectors/logs/full5.out` and
+`PREREGISTRATION_OUTCOME.md`. Variant B was rejected a second time, on stronger
+grounds than at demo scale. Nothing outstanding.
 
-Because the arrays are cached, the rerun is MINUTES, not hours — pass
-`--arrays`, NOT `--save-arrays`.
+## 0. Regenerating the per-patient caches (the published reproducibility path)
 
-**Step 1 — find PhysioNet on the pod.** This is what killed the run; do not
-guess it again.
+`full_labels.npz`, `full_d5_arrays.npz` and `full_d2_pools.pkl` are per-stay
+artifacts derived from restricted data. They are **deliberately not in this
+repository** and are excluded by `.gitignore`; aggregate results are committed
+instead, under `detectors/results/*.json`. This section is therefore not a
+convenience note any more — it is the path that stands in for the missing files,
+so it must stay accurate.
 
-    find /workspace -maxdepth 4 -type d -name "training_setA" 2>/dev/null | head
+Every flag named below was verified against the argument parsers on 2026-09-06.
 
-PHYSIONET_DIR must be the directory CONTAINING training_setA.
+Requirements: your own credentialed copies of PhysioNet 2019, MIMIC-IV 3.1 and
+eICU-CRD 2.0. `run_all.py` does NOT need any of this — it reproduces the results
+table from the committed aggregate JSON on a machine with no clinical data at
+all. What follows is only for re-deriving those aggregates from raw data.
 
-**Step 2 — pull, and move the cache.** The `rebootpcl/` -> `detectors/` rename
-landed while the pod was off. The npz is untracked so git leaves it behind in
-the old directory:
-
-    cd /workspace/pclCodebase && git pull origin main
-    mkdir -p chat1_protocol/detectors/results
-    mv chat1_protocol/rebootpcl/results/full_d5_arrays.npz \
-       chat1_protocol/detectors/results/ 2>/dev/null
-    ls -la chat1_protocol/detectors/results/full_d5_arrays.npz
-
-If that npz is GONE, /workspace was not a persistent network volume and the
-load must be repeated with `--save-arrays` (2-5h). Check this before assuming
-the short path.
-
-**Step 3 — rerun.**
-
-    cd /workspace/pclCodebase/chat1_protocol
-    export MIMIC_DIR=/workspace/physionet.org/files/mimiciv/3.1
-    export EICU_DIR=/workspace/physionet.org/files/eicu-crd/2.0
-    export PHYSIONET_DIR=<from step 1>
-    export PCL_TEST_MODE=1
-    python detectors/external/run_external5.py --seeds 5 --physionet-n 800 \
-        --arrays detectors/results/full_d5_arrays.npz \
-        > detectors/logs/full5.out 2>&1
-    tail -45 detectors/logs/full5.out
-
-**What to look for.** The pre-registered rule rejected Variant B at demo scale
-because it did not detect at a strictly LOWER ablation fraction — both variants
-first fired at 80%, neither at 50%, where the availability ratio was 1.7 against
-a 2.0 gate. At full scale those ratios come from vastly more stays. If B now
-detects at 50% where A does not, the pre-registered criterion is met and B should
-be adopted — that is a DECISION REVERSAL and goes back to the strategy advisor
-rather than being applied unilaterally. Also watch E4: its gap_ratio was 1.414 at
-demo scale (the case that exposed the unbounded-ratio bug). It should stay silent
-on availability grounds; if it flags, that is a new false positive and takes
-priority over everything else.
-
-Detector 2 full-scale comes AFTER detector 5's result is reviewed, not before.
-
-**Machine:** 8-core/32GB suffices for the cached rerun. Use 16-core/64GB only if
-step 2 shows the npz is gone and the full load must repeat.
-
-## 0. NEXT POD SESSION — exact commands (full-scale, resumes 2026-08-06)
-
-State: full-scale detector 1 ran and PASSED (see README's full-scale block).
-Its label arrays were NOT cached, so the bootstrap CI is still demo-scale.
-`--save-labels` now exists so this is the last time labelling is paid for.
-
-Pod: RunPod, 8-core/32GB, ~$0.32/h. NO GPU — nothing here trains anything
-bigger than a 0.3M-param model. /workspace is a network volume and persists
-across pod shutdown, so write outputs there, never to container-local paths.
-
-    # from the laptop
-    git push origin main
-
-    # on the pod
-    cd /workspace/pclCodebase && git pull origin main && cd chat1_protocol
-    export MIMIC_DIR=/workspace/physionet.org/files/mimiciv/3.1
-    export EICU_DIR=/workspace/physionet.org/files/eicu-crd/2.0
-    export PHYSIONET_DIR=/workspace/physionet2019
+    cd <repo>/chat1_protocol
+    export PHYSIONET_DIR=<dir CONTAINING training_setA and training_setB>
+    export MIMIC_DIR=<.../mimiciv/3.1>
+    export EICU_DIR=<.../eicu-crd/2.0>
     export PCL_TEST_MODE=1
 
-    # ~2-4h. Caches labels so nothing after this needs the raw data again.
-    nohup python detectors/external/run_external1.py \
-        --save-labels detectors/results/full_labels.npz \
-        > detectors/full1_final.out 2>&1 &
+`PHYSIONET_DIR` must be the PARENT of `training_setA`, not `training_setA`
+itself. Pointing it one level too deep is what killed a multi-hour detector 5
+run once; it is the single most common mistake here.
 
-    # seconds, once the above finishes
-    python detectors/external/bootstrap_kappa.py \
-        --labels detectors/results/full_labels.npz --iters 5000 \
-        > detectors/full1_bootstrap.out 2>&1
+`PCL_TEST_MODE=1` stays 1 deliberately. It does not subset this data
+(`load_stays` reads all of `icustays.csv.gz`), but it holds the model at
+d=64/2-layer so demo and full-scale rows stay comparable.
 
-Then COPY `detectors/results/full_labels.npz` off the pod and commit it — it is
-small (label arrays only) and makes every future detector 1 analysis free.
+### Detector 1 — labels and bootstrap (~2-4 h, then seconds)
 
-PCL_TEST_MODE stays 1 deliberately: it does not subset this task's data
-(`load_stays` reads all of icustays.csv.gz) but it holds the model at
-d=64/2-layer, so demo and full-scale rows stay comparable.
+    python detectors/external/run_external1.py         --save-labels detectors/results/full_labels.npz         > detectors/logs/full1_probe.out 2>&1
 
-Unverified: `/workspace/physionet2019` was never confirmed to exist. Detector 1
-does not need it; detector 5's regression guard (Task B) does. Check before
-starting Task B.
+    python detectors/external/bootstrap_kappa.py         --labels detectors/results/full_labels.npz --iters 5000         > detectors/logs/full1_bootstrap.out 2>&1
 
-Task B (detectors 5 and 2 at full scale) and Task C are NOT started. Detector 5
-loads full eICU through a heavier path than detector 1 — budget several hours
-and watch RSS, since eICU's vitalPeriodic is ~146M rows / ~35GB uncompressed.
-Priority is now low: detector 1 was the open risk and it is answered.
+The npz caches the label arrays, so the bootstrap is seconds and can be rerun at
+any number of iterations without relabelling. Keep it locally; do not commit it.
 
-## 1. CLAUDE.md's preprocessing description does not match the code
+### Detector 5 — arrays and variants (2-5 h first time, minutes after)
 
-**Status:** filed, not fixed. Low priority relative to remaining detector work.
+    python detectors/external/run_external5.py --seeds 5 --physionet-n 800         --save-arrays detectors/results/full_d5_arrays.npz         > detectors/logs/full5.out 2>&1
 
-CLAUDE.md's Data Pipeline Rules state:
+Rerun with `--arrays` (not `--save-arrays`) to reuse the cache.
 
-> Median-binning, forward-filling (6h limit), and unit variance normalization
-> computed only on training data.
+### Detector 2 — pools and leakage sweep
 
-The code does something different in two respects:
+    python detectors/external/run_external2.py --seeds 5         --pool-cache detectors/results/full_d2_pools.pkl         > detectors/logs/full2.out 2>&1
 
-* **Normalization is fixed-bounds min-max, not unit variance, and it is not
-  computed from data at all.** `MinMaxNormalizer.fit()` is a no-op
-  (`src/data/preprocessing.py:133`); `transform` rescales each variable by the
-  fixed clinical plausibility bounds in `PLAUS` (`src/data/variables.py`). The
-  `normalizer.fit(all_raw_ts)` calls in all three loaders are vestigial. The
-  `normalizer=None` fallback inside `preprocess_timeseries` applies the same
-  PLAUS formula inline.
-* Because the bounds are constants, "computed only on training data" is
-  vacuous here — there is nothing fitted to leak. The rule is satisfied, but
-  not for the reason the document gives.
+`--pool-cache` is written on the first run and reused after, which skips a
+40-60 minute load of both databases. Wire it in before launching, not after
+discovering it was needed.
 
-**Why this matters and why it is filed rather than ignored:** the paper's
-methods section is the kind of thing that gets drafted from the project
-document rather than from the source. Anyone doing that would describe unit
-variance normalization fitted on training data, which is not what produced any
-number in this repository.
+### Machine
 
-**Do not "fix" this by changing the code.** The fixed-bounds behaviour is what
-every result so far was measured under, and detector 2's external design
-explicitly depends on it (see `detectors/tests/test_normalizer_bounds.py`).
-Fix the documentation to match the code.
+8-core/32 GB CPU is enough for all three; nothing here trains anything larger
+than a 0.3M-parameter model. eICU's `vitalPeriodic` is ~146M rows / ~35 GB
+uncompressed, so watch RSS on detector 5's first pass. If you run this on a
+rented pod, write outputs to a persistent volume — container-local paths are
+lost on shutdown, which is how detector 1's original full-scale logs were lost
+(see the archival gap section of the README).
+
+## 1. DONE — CLAUDE.md's preprocessing description now matches the code
+
+It described "unit variance normalization computed only on training data". The
+code applies a FIXED min-max map from the clinical plausibility bounds in `PLAUS`
+(`src/data/variables.py`); `MinMaxNormalizer.fit()` is a no-op
+(`src/data/preprocessing.py`) and the `normalizer.fit(all_raw_ts)` calls in all
+three loaders are vestigial.
+
+The documentation was corrected to match the code, never the reverse: every
+number in this repository was measured under the fixed-bounds behaviour, and
+detector 2's external design depends on the bounds being shared across datasets.
+That dependency is guarded by `detectors/tests/test_normalizer_bounds.py`.
+
+Kept here rather than deleted because the failure it describes is a live hazard
+for the paper: a methods section drafted from the project document rather than
+the source would state something no result was produced under.
 
 ## 2. Detector 2 disambiguation arm — DESIGNED, NOT RUN (rebuttal-ready)
 

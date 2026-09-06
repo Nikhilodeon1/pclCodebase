@@ -1,4 +1,18 @@
 __pycache__/
 *.pyc
-detectors/results/
 detectors/checks/_leak_*.pt
+
+# Per-patient / per-stay caches derived from restricted data.
+#
+# Aggregate results ARE committed, under detectors/results/*.json: confusion
+# matrices, kappa values, confidence intervals, t-statistics, flag rates. Those
+# are summary numbers, and publishing the code that produced them is required
+# by the PhysioNet DUA once the results are disseminated.
+#
+# Anything at individual-stay granularity is NOT published, even where it is not
+# identifying on its own. That is the whole of the exclusion, and it costs
+# nothing reproducible: regenerate these caches with your own credentials using
+# the commands in detectors/TODO.md section 0.
+detectors/results/*.npz
+detectors/results/*.pkl
+detectors/results/*.pt

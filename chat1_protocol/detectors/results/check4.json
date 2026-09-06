@@ -1,0 +1,82 @@
+{
+  "counts": {
+    "TP": 1,
+    "FP": 0,
+    "FN": 0,
+    "TN": 8
+  },
+  "cases": [
+    {
+      "name": "PhysioNet/Severinghaus",
+      "flagged": true,
+      "expected": true,
+      "stats": {
+        "reason": "PaO2 derived from SaO2 via severinghaus"
+      }
+    },
+    {
+      "name": "PhysioNet/MAP",
+      "flagged": false,
+      "expected": false,
+      "stats": {
+        "reason": ""
+      }
+    },
+    {
+      "name": "PhysioNet/HendersonHass",
+      "flagged": false,
+      "expected": false,
+      "stats": {
+        "reason": ""
+      }
+    },
+    {
+      "name": "MIMIC-IV/Severinghaus",
+      "flagged": false,
+      "expected": false,
+      "stats": {
+        "reason": ""
+      }
+    },
+    {
+      "name": "MIMIC-IV/MAP",
+      "flagged": false,
+      "expected": false,
+      "stats": {
+        "reason": ""
+      }
+    },
+    {
+      "name": "MIMIC-IV/HendersonHass",
+      "flagged": false,
+      "expected": false,
+      "stats": {
+        "reason": ""
+      }
+    },
+    {
+      "name": "eICU/Severinghaus",
+      "flagged": false,
+      "expected": false,
+      "stats": {
+        "reason": ""
+      }
+    },
+    {
+      "name": "eICU/MAP",
+      "flagged": false,
+      "expected": false,
+      "stats": {
+        "reason": ""
+      }
+    },
+    {
+      "name": "eICU/HendersonHass",
+      "flagged": false,
+      "expected": false,
+      "stats": {
+        "reason": ""
+      }
+    }
+  ]
+}

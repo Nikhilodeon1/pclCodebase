@@ -1,0 +1,39 @@
+{
+  "counts": {
+    "TP": 1,
+    "FP": 0,
+    "FN": 0,
+    "TN": 1
+  },
+  "cases": [
+    {
+      "name": "sweep_BUGGY.py",
+      "flagged": true,
+      "expected": true,
+      "stats": {
+        "verdict": "CONTAMINATED",
+        "sweeps": [
+          "ablation_lambda_sweep",
+          "ablation_constraint_subset"
+        ],
+        "contaminated": [
+          "ablation_lambda_sweep",
+          "ablation_constraint_subset"
+        ]
+      }
+    },
+    {
+      "name": "sweep_FIXED.py",
+      "flagged": false,
+      "expected": false,
+      "stats": {
+        "verdict": "OK",
+        "sweeps": [
+          "ablation_lambda_sweep",
+          "ablation_constraint_subset"
+        ],
+        "contaminated": []
+      }
+    }
+  ]
+}

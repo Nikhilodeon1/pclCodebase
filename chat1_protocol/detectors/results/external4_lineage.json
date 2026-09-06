@@ -1,0 +1,54 @@
+{
+  "own": {
+    "physionet2019": {
+      "file": "src/data/physionet2019.py",
+      "status": "derivations_found",
+      "derivations": {
+        "HCO3": {
+          "equation": "base_excess_to_hco3",
+          "line": 45,
+          "reachable": false,
+          "reason": "guarded by \"HCO3\" not in columns, but \"HCO3\" IS present"
+        },
+        "PaO2": {
+          "equation": "severinghaus",
+          "line": 55,
+          "reachable": true,
+          "reason": ""
+        }
+      }
+    },
+    "mimic4": {
+      "file": "src/data/mimic4.py",
+      "status": "no_derivations",
+      "derivations": {}
+    },
+    "eicu": {
+      "file": "src/data/eicu.py",
+      "status": "no_derivations",
+      "derivations": {}
+    }
+  },
+  "external": {
+    "mimic3-benchmarks/mimic3benchmark/preprocessing.py": {
+      "file": "mimic3-benchmarks/mimic3benchmark/preprocessing.py",
+      "status": "no_derivations",
+      "derivations": {}
+    },
+    "mimic3-benchmarks/mimic3benchmark/mimic3csv.py": {
+      "file": "mimic3-benchmarks/mimic3benchmark/mimic3csv.py",
+      "status": "no_derivations",
+      "derivations": {}
+    },
+    "MIMIC_Extract/mimic_direct_extract.py": {
+      "file": "MIMIC_Extract/mimic_direct_extract.py",
+      "status": "no_derivations",
+      "derivations": {}
+    },
+    "MIMIC_Extract/utils/simple_impute.py": {
+      "file": "MIMIC_Extract/utils/simple_impute.py",
+      "status": "no_derivations",
+      "derivations": {}
+    }
+  }
+}

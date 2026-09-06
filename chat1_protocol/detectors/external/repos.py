@@ -23,10 +23,17 @@ status is disclosed rather than glossed.
 """
 import os
 
-SCRATCH = os.path.join(
-    os.environ.get("LOCALAPPDATA", os.path.expanduser("~")),
-    "Temp", "claude", "C--Users-nikhi-Codes-pclCodebase",
-    "efde8e2f-8e57-4c58-be6b-f87cdf01b534", "scratchpad", "repos")
+# Where the read-only clones live. Overridable, and it has to be: the default
+# below was a session-specific scratch directory on the original author's
+# machine, complete with username and a session UUID, which is not something a
+# public repository should hardcode. It is also not durable -- the OS temp
+# sweeper has emptied it twice during this project, which is why SCAN_CORPUS.md
+# pins every commit SHA rather than relying on the clones surviving.
+#
+# Set PCL_SCRATCH_REPOS to any directory. `run_repos.py` reclones into it.
+SCRATCH = os.environ.get(
+    "PCL_SCRATCH_REPOS",
+    os.path.join(os.path.expanduser("~"), ".cache", "pcl_scan_repos"))
 
 TARGETS = [
     {

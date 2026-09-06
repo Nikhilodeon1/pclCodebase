@@ -1,0 +1,23 @@
+# Versions that actually produced the committed results, not aspirational pins.
+# The repository-root requirements.txt covers every work-stream in this
+# workspace; this file is scoped to the confound-detector paper so the released
+# artifact is self-contained.
+#
+#     python -m venv venv && venv/bin/pip install -r requirements.txt
+#
+# Python 3.14 was used. Nothing here needs a GPU: the largest model trained by
+# any detector is ~0.3M parameters and every check runs on CPU.
+
+# Required by run_all.py -- reproducing the results table needs only these.
+numpy==2.4.4
+torch==2.11.0        # detector 2's masked-reconstruction probe
+pandas==3.0.2        # detectors 1 and 5 read the raw tables
+
+# Required only by the baseline comparison (detectors/baselines/run_baselines.py)
+# and by the historical bug fixtures under detectors/fixtures/.
+scikit-learn==1.8.0
+matplotlib==3.10.9
+
+# Detectors 3 and 4 are pure static analysis on Python's own `ast` module and
+# add no dependency at all. That is deliberate: it is what lets them run against
+# third-party repositories without installing or executing them.
